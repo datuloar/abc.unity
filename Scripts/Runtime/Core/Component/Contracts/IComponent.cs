@@ -1,1 +1,4 @@
-﻿public interface IComponent { }
+﻿namespace abc.unity.Core
+{
+    public interface IComponent { }
+}
