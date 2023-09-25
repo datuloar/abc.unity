@@ -1,7 +1,7 @@
 ﻿using abc.unity.Core;
 using UnityEngine;
 
-namespace abc.unity.ExampleMonobehaviour
+namespace abc.unity.Example
 {
     [RequireComponent(typeof(JumpComponent), typeof(RigidbodyComponent))]
     public class JumpBehaviour : BaseBehaviour<IJumpBehaviour>, IJumpBehaviour

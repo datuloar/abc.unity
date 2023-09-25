@@ -1,7 +1,6 @@
 using abc.unity.Core;
-using UnityEngine;
 
-namespace abc.unity.ExampleMonobehaviour
+namespace abc.unity.Example
 {
     public class Hero : Actor { }
 }

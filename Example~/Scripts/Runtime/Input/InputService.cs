@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace abc.unity.ExampleMonobehaviour
+namespace abc.unity.Example
 {
     public class InputService : MonoBehaviour
     {
