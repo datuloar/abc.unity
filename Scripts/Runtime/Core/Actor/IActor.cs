@@ -6,7 +6,6 @@ namespace abc.unity.Core
     IDisposable,
     ICommandListener,
     IBehaviourReceiver,
-    IComponentsProvider,
-    ITickable
+    IComponentsHolder
     { }
 }

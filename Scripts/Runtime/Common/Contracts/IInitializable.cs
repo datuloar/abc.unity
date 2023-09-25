@@ -1,4 +1,7 @@
-﻿public interface IInitializable
+﻿namespace abc.unity.Common
 {
-    void Initialize();
+    public interface IInitializable
+    {
+        void Initialize();
+    }
 }

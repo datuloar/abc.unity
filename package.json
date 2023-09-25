@@ -7,9 +7,16 @@
   "unityRelease": "0b5",
   "documentationUrl": "https://github.com/datuloar/abc.unity",
   "licensesUrl": "https://github.com/datuloar/abc.unity/blob/main/LICENSE",
-  "dependencies": { },
+  "dependencies": {},
   "author": {
     "name": "datuloar",
     "email": "datuloar@mail.ru"
-  }
+  },
+  "samples": [
+    {
+      "displayName": "ABS Sample",
+      "description": "Configurate Hero",
+      "path": "Example~/ABS Sample"
+    }
+  ]
 }

@@ -1,4 +1,7 @@
-﻿public interface ITickable
+﻿namespace abc.unity.Common
 {
-    void Tick(float deltaTime);
+    public interface ITickable
+    {
+        void Tick(float deltaTime);
+    }
 }
