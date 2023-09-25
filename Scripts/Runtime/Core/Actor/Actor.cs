@@ -18,9 +18,6 @@ namespace abc.unity.Core
 
         public void AddBehaviour<TBehaviour>(TBehaviour behaviour) where TBehaviour : IBehaviour
         {
-            if (behaviour is IActorHolder actorHolder)
-                actorHolder.Actor = this;
-
             if (behaviour is ICommandListener commandListener)
                 _commandListeners.Add(commandListener);
 
@@ -29,6 +26,8 @@ namespace abc.unity.Core
 
             if (behaviour is IDisposable disposable)
                 _disposables.Add(disposable);
+
+            behaviour.Actor = this;
         }
 
         public new bool TryGetComponent<TComponent>(out TComponent component) where TComponent : IComponent
