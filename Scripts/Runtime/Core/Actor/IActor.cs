@@ -1,4 +1,5 @@
-﻿using System;
+﻿using abc.unity.Common;
+using System;
 
 namespace abc.unity.Core
 {
@@ -6,6 +7,7 @@ namespace abc.unity.Core
     IDisposable,
     ICommandListener,
     IBehaviourReceiver,
-    IComponentsHolder
+    IComponentsHolder,
+    ITickable
     { }
 }

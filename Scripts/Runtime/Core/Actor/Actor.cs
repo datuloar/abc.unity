@@ -14,10 +14,10 @@ namespace abc.unity.Core
         private List<IComponent> _components = new(20);
         private List<IBehaviour> _behaviours = new(20);
 
-        private void Update()
-        {
-            var deltaTime = Time.deltaTime;
+        public event Action<Actor> Dead;
 
+        public void Tick(float deltaTime)
+        {
             for (int i = 0; i < _tickables.Count; i++)
                 _tickables[i].Tick(deltaTime);
         }
@@ -70,6 +70,8 @@ namespace abc.unity.Core
 
         public void Dispose()
         {
+            Dead?.Invoke(this);
+
             foreach (var disposable in _disposables)
                 disposable.Dispose();
 
