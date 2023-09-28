@@ -1,6 +1,6 @@
 ﻿using abc.unity.Core;
 
-namespace abc.unity.ExampleMonobehaviour
+namespace abc.unity.Example
 {
     public interface IJumpComponent : IComponent
     {

@@ -1,6 +1,7 @@
-﻿using abc.unity.Core;
+﻿using abc.unity.Common;
+using abc.unity.Core;
 
-namespace abc.unity.ExampleMonobehaviour
+namespace abc.unity.Example
 {
     public interface IJumpBehaviour : IBehaviour, ICommandListener
     {

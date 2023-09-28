@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace abc.unity.ExampleMonobehaviour
+namespace abc.unity.Example
 {
     public class PlayerController : MonoBehaviour
     {
