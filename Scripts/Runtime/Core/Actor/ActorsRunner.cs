@@ -10,13 +10,13 @@ namespace abc.unity.Core
         private void OnEnable()
         {
             foreach (var actor in _actors)
-                actor.Dead += OnActorDead;
+                actor.Destroyed += OnActorDestroyed;
         }
 
         private void OnDisable()
         {
             foreach (var actor in _actors)
-                actor.Dead -= OnActorDead;
+                actor.Destroyed -= OnActorDestroyed;
         }
 
         private void Update()
@@ -38,6 +38,6 @@ namespace abc.unity.Core
 
         public void RemoveActor(Actor actor) => _actors.Remove(actor);
 
-        private void OnActorDead(Actor actor) => RemoveActor(actor);
+        private void OnActorDestroyed(Actor actor) => RemoveActor(actor);
     }
 }
