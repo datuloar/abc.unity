@@ -6,7 +6,7 @@ namespace abc.unity.Core
     public interface IActor :
     IDisposable,
     ICommandListener,
-    IBehaviourReceiver,
+    IBehavioursHolder,
     IComponentsHolder,
     ITickable
     { }

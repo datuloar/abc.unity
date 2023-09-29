@@ -1,36 +1,57 @@
 using abc.unity.Common;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace abc.unity.Core
 {
     public abstract class Actor : MonoBehaviour, IActor
     {
-        private List<ITickable> _tickables = new(20);
-        private List<IDisposable> _disposables = new(20);
-        private List<ICommandListener> _commandListeners = new(20);
-        private List<IComponent> _components = new(20);
-        private List<IBehaviour> _behaviours = new(20);
+        private List<KeyValuePair<Type, ITickable>> _tickables = new(20);
+        private List<KeyValuePair<Type, ICommandListener>> _commandListeners = new(20);
+        private List<KeyValuePair<Type, IComponent>> _components = new(20);
+        private List<KeyValuePair<Type, IBehaviour>> _behaviours = new(20);
 
         public event Action<Actor> Dead;
 
         public void Tick(float deltaTime)
         {
             for (int i = 0; i < _tickables.Count; i++)
-                _tickables[i].Tick(deltaTime);
+                _tickables[i].Value.Tick(deltaTime);
         }
 
-        public bool HasComponent<TComponent>() where TComponent : IComponent =>
-            _components.OfType<TComponent>().FirstOrDefault() != null;
+        public bool HasComponent<TComponent>() where TComponent : IComponent
+        {
+            var type = typeof(TComponent);
+
+            foreach (var component in _components)
+            {
+                if (component.Key == type)
+                    return true;
+            }
+
+            return false;
+        }
 
         public void AddComponent<TComponent>(TComponent component) where TComponent : IComponent
         {
             if (HasComponent<TComponent>())
                 return;
 
-            _components.Add(component);
+            var type = typeof(TComponent);
+
+            _components.Add(new KeyValuePair<Type, IComponent>() { Key = type, Value = component });
+        }
+
+        public void RemoveComponent<TComponent>() where TComponent : IComponent
+        {
+            var type = typeof(TComponent);
+
+            foreach (var component in _components)
+            {
+                if (component.Key == type)
+                    _components.Remove(component);
+            }
         }
 
         public new TComponent GetComponent<TComponent>() where TComponent : class, IComponent
@@ -38,7 +59,15 @@ namespace abc.unity.Core
             if (!HasComponent<TComponent>())
                 throw new InvalidOperationException($"Actor-{gameObject.name} does not have a component of type {typeof(TComponent).Name}");
 
-            return _components.OfType<TComponent>().First();
+            var type = typeof(TComponent);
+
+            foreach (var component in _components)
+            {
+                if (component.Key == type)
+                    return component.Value as TComponent;
+            }
+
+            throw new NullReferenceException();
         }
 
         public void AddBehaviour<TBehaviour>(TBehaviour behaviour) where TBehaviour : IBehaviour
@@ -46,36 +75,74 @@ namespace abc.unity.Core
             if (HasBehaviour<TBehaviour>())
                 return;
 
+            var type = typeof(TBehaviour);
+
             if (behaviour is ICommandListener commandListener)
-                _commandListeners.Add(commandListener);
+                _commandListeners.Add(new KeyValuePair<Type, ICommandListener>() { Key = type, Value = commandListener });
 
             if (behaviour is ITickable updatable)
-                _tickables.Add(updatable);
+                _tickables.Add(new KeyValuePair<Type, ITickable>() { Key = type, Value = updatable });
 
-            if (behaviour is IDisposable disposable)
-                _disposables.Add(disposable);
+            _behaviours.Add(new KeyValuePair<Type, IBehaviour>() { Key = type, Value = behaviour });
 
             behaviour.Actor = this;
-            _behaviours.Add(behaviour);
         }
 
-        public bool HasBehaviour<TBehaviour>() where TBehaviour : IBehaviour =>
-            _behaviours.OfType<TBehaviour>().FirstOrDefault() != null;
+        public bool HasBehaviour<TBehaviour>() where TBehaviour : IBehaviour
+        {
+            var type = typeof(TBehaviour);
+
+            foreach (var behaviour in _behaviours)
+            {
+                if (behaviour.Key == type)
+                    return true;
+            }
+
+            return false;
+        }
+
+        public void RemoveBehaviour<TBehaviour>() where TBehaviour : IBehaviour
+        {
+            var type = typeof(TBehaviour);
+
+            foreach (var commandListener in _commandListeners)
+            {
+                if (commandListener.Key == type)
+                    _commandListeners.Remove(commandListener);
+            }
+
+            foreach (var tickable in _tickables)
+            {
+                if (tickable.Key == type)
+                    _tickables.Remove(tickable);
+            }
+
+            foreach (var behaviour in _behaviours)
+            {
+                if (behaviour.Key == type)
+                {
+                    behaviour.Value.Dispose();
+                    _behaviours.Remove(behaviour);
+                }
+            }
+        }
 
         public void ReactCommand(ICommand command)
         {
             foreach (var commandListener in _commandListeners)
-                commandListener.ReactCommand(command);
+                commandListener.Value.ReactCommand(command);
         }
 
         public void Dispose()
         {
             Dead?.Invoke(this);
-
-            foreach (var disposable in _disposables)
-                disposable.Dispose();
-
             Destroy(gameObject);
         }
+    }
+
+    public struct KeyValuePair<TKey, TValue>
+    {
+        public TKey Key;
+        public TValue Value;
     }
 }

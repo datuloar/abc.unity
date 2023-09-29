@@ -1,4 +1,6 @@
-﻿namespace abc.unity.Core
+﻿using System;
+
+namespace abc.unity.Core
 {
-    public interface IBehaviour : IActorHolder { }
+    public interface IBehaviour : IActorHolder, IDisposable { }
 }
