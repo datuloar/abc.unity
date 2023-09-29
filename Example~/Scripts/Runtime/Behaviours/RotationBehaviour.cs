@@ -12,6 +12,8 @@ namespace abc.unity.Example
         {
             Debug.Log("Rotation");
         }
+
+        public void Dispose() { }
     }
 
     public interface IRotationBehaviour : IBehaviour, ITickable { }

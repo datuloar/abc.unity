@@ -1,9 +1,10 @@
 ﻿using abc.unity.Common;
+using System;
 using UnityEngine;
 
 namespace abc.unity.Core
 {
-    public abstract class BaseBehaviour<TBehaviour> : MonoBehaviour, IInitializable, IBehaviour where TBehaviour : IBehaviour
+    public abstract class BaseBehaviour<TBehaviour> : MonoBehaviour, IInitializable, IDisposable, IBehaviour where TBehaviour : IBehaviour
     {
         public IActor Actor { get; set; }
 
@@ -11,12 +12,12 @@ namespace abc.unity.Core
 
         private void Awake()
         {
-            if (!TryGetComponent<IBehaviourReceiver>(out var behaviourReceiver))
+            if (!TryGetComponent<IBehavioursHolder>(out var behaviourReceiver))
                 throw new System.NullReferenceException("Missing BehaviourReceiver on object" + gameObject.name);
 
             if (behaviourReceiver.HasBehaviour<TBehaviour>())
             {
-                Destroy(this);
+                Dispose();
                 return;
             }
 
@@ -29,5 +30,9 @@ namespace abc.unity.Core
         private void Start() => Initialize();
 
         public abstract void Initialize();
+
+        public void RemoveSelf() => Actor.RemoveBehaviour<TBehaviour>();
+
+        public void Dispose() => Destroy(this);
     }
 }
