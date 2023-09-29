@@ -10,9 +10,10 @@ namespace abc.unity.Core
         private List<KeyValuePair<Type, ITickable>> _tickables = new(20);
         private List<KeyValuePair<Type, ICommandListener>> _commandListeners = new(20);
         private List<KeyValuePair<Type, IComponent>> _components = new(20);
+        private List<KeyValuePair<Type, IDisposable>> _disposables = new(20);
         private List<KeyValuePair<Type, IBehaviour>> _behaviours = new(20);
 
-        public event Action<Actor> Dead;
+        public event Action<Actor> Destroyed;
 
         public void Tick(float deltaTime)
         {
@@ -83,6 +84,9 @@ namespace abc.unity.Core
             if (behaviour is ITickable updatable)
                 _tickables.Add(new KeyValuePair<Type, ITickable>() { Key = type, Value = updatable });
 
+            if (behaviour is IDisposable disposable)
+                _disposables.Add(new KeyValuePair<Type, IDisposable>() { Key = type, Value = disposable });
+
             _behaviours.Add(new KeyValuePair<Type, IBehaviour>() { Key = type, Value = behaviour });
 
             behaviour.Actor = this;
@@ -120,10 +124,13 @@ namespace abc.unity.Core
             foreach (var behaviour in _behaviours)
             {
                 if (behaviour.Key == type)
-                {
-                    behaviour.Value.Dispose();
                     _behaviours.Remove(behaviour);
-                }
+            }
+
+            foreach (var disposable in _disposables)
+            {
+                if (disposable.Key == type)
+                    _disposables.Remove(disposable);
             }
         }
 
@@ -133,9 +140,13 @@ namespace abc.unity.Core
                 commandListener.Value.ReactCommand(command);
         }
 
-        public void Dispose()
+        public void Destroy()
         {
-            Dead?.Invoke(this);
+            Destroyed?.Invoke(this);
+
+            foreach (var disposable in _disposables)
+                disposable.Value.Dispose();
+
             Destroy(gameObject);
         }
     }
