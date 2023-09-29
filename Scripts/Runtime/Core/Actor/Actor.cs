@@ -130,7 +130,10 @@ namespace abc.unity.Core
             foreach (var disposable in _disposables)
             {
                 if (disposable.Key == type)
+                {
+                    disposable.Value.Dispose();
                     _disposables.Remove(disposable);
+                }
             }
         }
 
