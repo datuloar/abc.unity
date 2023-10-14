@@ -3,7 +3,7 @@ using abc.unity.Core;
 
 namespace abc.unity.Example
 {
-    public interface IJumpBehaviour : IBehaviour, ICommandListener
+    public interface IJumpBehaviour : IBehaviour, ICommandListener<JumpCommand>
     {
 
     }

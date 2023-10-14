@@ -3,9 +3,11 @@
 namespace abc.unity.Core
 {
     public interface IActor :
-    ICommandListener,
+    ICommandSender,
     IBehavioursHolder,
     IComponentsHolder,
-    ITickable
+    IDestroyableHandler<IActor>,
+    ITickable,
+    IFixedTickable
     { }
 }
