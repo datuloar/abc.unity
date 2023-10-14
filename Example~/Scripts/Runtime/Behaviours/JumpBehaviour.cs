@@ -17,13 +17,10 @@ namespace abc.unity.Example
             _rigidbodyComponent = Actor.GetComponent<IRigidbodyComponent>();
         }
 
-        public void ReactCommand(ICommand command)
+        public void ReactCommand(JumpCommand command)
         {
-            if (command is JumpCommand)
-            {
-                var force = new Vector3(0, _jumpComponent.Force);
-                _rigidbodyComponent.Value.AddForce(force, ForceMode.Force);
-            }
+            var force = new Vector3(0, _jumpComponent.Force);
+            _rigidbodyComponent.Value.AddForce(force, ForceMode.Force);
         }
     }
 }

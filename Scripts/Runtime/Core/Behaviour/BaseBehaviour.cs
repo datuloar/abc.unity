@@ -13,7 +13,7 @@ namespace abc.unity.Core
         private void Awake()
         {
             if (!TryGetComponent<IBehavioursHolder>(out var behaviourReceiver))
-                throw new System.NullReferenceException("Missing BehaviourReceiver on object" + gameObject.name);
+                throw new System.NullReferenceException("Missing BehavioursHolder on object" + gameObject.name);
 
             if (behaviourReceiver.HasBehaviour<TBehaviour>())
             {
@@ -33,6 +33,12 @@ namespace abc.unity.Core
 
         public void RemoveSelf() => Actor.RemoveBehaviour<TBehaviour>();
 
-        public void Dispose() => Destroy(this);
+        public void Dispose()
+        {
+            OnDispose();
+            Destroy(this);
+        }
+
+        protected virtual void OnDispose() { }
     }
 }

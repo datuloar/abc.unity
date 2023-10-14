@@ -1,22 +1,26 @@
+using abc.unity.Common;
 using abc.unity.Core;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
 
 namespace abc.unity.Example
 {
-    public class PlayerController : MonoBehaviour
+    public class PlayerController : ITickable
     {
-        [SerializeField] private InputService _inputService;
-        [SerializeField] private Actor _actor;
+        private readonly IActor _actor;
+        private readonly IInputService _input;
 
-        private void Update()
+        public PlayerController(IActor actor, IInputService input)
         {
-            if (!_inputService.IsEnable)
+            _actor = actor;
+            _input = input;
+        }
+
+        public void Tick(float deltaTime)
+        {
+            if (!_input.IsEnable)
                 return;
 
-            if (_inputService.IsJumpButtonClicked)
-                _actor.ReactCommand(new JumpCommand());
+            if (_input.IsJumpButtonClicked)
+                _actor.SendCommand<JumpCommand>();
         }
     }
 }

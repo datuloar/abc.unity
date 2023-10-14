@@ -1,4 +1,4 @@
-﻿public interface ICommandListener
+﻿public interface ICommandListener<TCommand> where TCommand : ICommand
 {
-    void ReactCommand(ICommand command);
+    void ReactCommand(TCommand command);
 }
