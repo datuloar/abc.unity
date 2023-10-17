@@ -2,5 +2,5 @@
 
 namespace abc.unity.Core
 {
-    public interface IBehaviour : IActorHolder, IDisposable { }
+    public interface IBehaviour : IActorHolder { }
 }
