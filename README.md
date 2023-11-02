@@ -24,7 +24,7 @@
 ```
 По умолчанию используется последняя релизная версия. Если требуется версия "в разработке" с актуальными изменениями - следует переключиться на ветку `develop`:
 ```
-"com.redbook.abc.unity": "https://github.com/datuloar/abc.unity.git#develop",
+"com.abc.unity": "https://github.com/datuloar/abc.unity.git#develop",
 ```
 
 # Основные типы
