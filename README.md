@@ -20,7 +20,7 @@
 ## В виде unity модуля
 Поддерживается установка в виде unity-модуля через git-ссылку в PackageManager:
 ```
-"com.redbook.abc.unity": "https://github.com/datuloar/abc.unity.git",
+"com.abc.unity": "https://github.com/datuloar/abc.unity.git",
 ```
 По умолчанию используется последняя релизная версия. Если требуется версия "в разработке" с актуальными изменениями - следует переключиться на ветку `develop`:
 ```
