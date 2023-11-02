@@ -1,8 +1,8 @@
 {
-  "name": "com.redbook.abc.unity",
-  "version": "0.0.1",
+  "name": "com.abc.unity",
+  "version": "0.0.2",
   "displayName": "ABC",
-  "description": "ABC - Actor Behaviour Component - a platform that allows developers to quickly create simple games using the convenience of ECS",
+  "description": "Actor Behaviour Component - Framework for Unity Game Engine and .Net Platform",
   "unity": "2019.1",
   "unityRelease": "0b5",
   "documentationUrl": "https://github.com/datuloar/abc.unity",
@@ -14,7 +14,7 @@
   },
   "samples": [
     {
-      "displayName": "ABS Sample",
+      "displayName": "ABS Example",
       "description": "Configurate Hero",
       "path": "Example~"
     }

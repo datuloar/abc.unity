@@ -13,27 +13,27 @@ namespace abc.unity.Core
         private readonly List<IDisposable> _disposables = new(100);
         private readonly List<IBehaviour> _behaviours = new(100);
         private readonly Dictionary<Type, List<object>> _listenersMap = new(100);
-        private readonly object _tickablesLock = new();
-        private readonly object _fixedTickablesLock = new();
+
+        public bool IsAlive { get; private set; } = true;
 
         public event Action<IActor> Destroyed;
 
         public void Tick(float deltaTime)
         {
-            lock (_tickablesLock)
-            {
-                for (int i = 0; i < _tickables.Count; i++)
-                    _tickables[i].Tick(deltaTime);
-            }
+            if (!IsAlive)
+                return;
+
+            for (int i = 0; i < _tickables.Count; i++)
+                _tickables[i].Tick(deltaTime);
         }
 
         public void FixedTick(float fixedDeltaTime)
         {
-            lock (_fixedTickablesLock)
-            {
-                for (int i = 0; i < _fixedTickables.Count; i++)
-                    _fixedTickables[i].FixedTick(fixedDeltaTime);
-            }
+            if (!IsAlive)
+                return;
+
+            for (int i = 0; i < _fixedTickables.Count; i++)
+                _fixedTickables[i].FixedTick(fixedDeltaTime);
         }
 
         public bool HasComponent<TComponent>() where TComponent : IComponent =>
@@ -128,6 +128,16 @@ namespace abc.unity.Core
                         commandListener.ReactCommand(command);
                 }
             }
+        }
+
+        public void SetDead(bool isDead)
+        {
+            if (isDead)
+                SendCommand<ActorDeadCommand>();
+            else
+                SendCommand<ActorReviveCommand>();
+
+            IsAlive = isDead;
         }
 
         public void Destroy()

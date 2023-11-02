@@ -6,7 +6,9 @@ namespace abc.unity.Core
     ICommandSender,
     IBehavioursHolder,
     IComponentsHolder,
+    IDeadable,
     IDestroyableHandler<IActor>,
+    ITransformable,
     ITickable,
     IFixedTickable
     { }
