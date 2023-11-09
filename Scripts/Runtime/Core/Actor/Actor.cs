@@ -137,7 +137,7 @@ namespace abc.unity.Core
             else
                 SendCommand<ActorReviveCommand>();
 
-            IsAlive = isDead;
+            IsAlive = !isDead;
         }
 
         public void Destroy()
