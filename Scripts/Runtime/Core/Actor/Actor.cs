@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace abc.unity.Core
 {
-    public abstract class Actor : MonoBehaviour, IActor
+    public class Actor : MonoBehaviour, IActor
     {
         private readonly List<IFixedTickable> _fixedTickables = new(100);
         private readonly List<ITickable> _tickables = new(100);
@@ -14,9 +14,20 @@ namespace abc.unity.Core
         private readonly List<IBehaviour> _behaviours = new(100);
         private readonly Dictionary<Type, List<object>> _listenersMap = new(100);
 
-        public bool IsAlive { get; private set; } = true;
+        [SerializeField] private ActorTag _tag;
+        [SerializeField] private ActorBlueprint _blueprint;
+
+        public ActorTag Tag => _tag;
+        public bool IsAlive { get; private set; }
 
         public event Action<IActor> Destroyed;
+
+        public void Initialize()
+        {
+            AddBlueprint(_blueprint);
+            ActorsContainer.Add(this);
+            IsAlive = true;
+        }
 
         public void Tick(float deltaTime)
         {
@@ -34,6 +45,18 @@ namespace abc.unity.Core
 
             for (int i = 0; i < _fixedTickables.Count; i++)
                 _fixedTickables[i].FixedTick(fixedDeltaTime);
+        }
+
+        public void AddBlueprint(ActorBlueprint blueprint)
+        {
+            if (blueprint == null)
+                return;
+
+            foreach (var component in blueprint.Components)
+                AddComponent(component.GetComponent());
+
+            foreach (var behaviour in blueprint.Behaviour)
+                AddBehaviour(behaviour.GetBehaviour());
         }
 
         public bool HasComponent<TComponent>() where TComponent : IComponent =>
@@ -146,6 +169,9 @@ namespace abc.unity.Core
 
             foreach (var disposable in _disposables)
                 disposable.Dispose();
+
+            if (ActorsContainer.Has(Tag))
+                ActorsContainer.Remove(this);
 
             Destroy(gameObject);
         }
