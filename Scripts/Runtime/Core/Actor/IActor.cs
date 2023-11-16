@@ -6,10 +6,14 @@ namespace abc.unity.Core
     ICommandSender,
     IBehavioursHolder,
     IComponentsHolder,
+    IBlueprintsHolder,
     IDeadable,
     IDestroyableHandler<IActor>,
     ITransformable,
+    IInitializable,
     ITickable,
     IFixedTickable
-    { }
+    {
+        ActorTag Tag { get; }
+    }
 }
