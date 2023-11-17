@@ -1,4 +1,7 @@
-﻿public interface ICommandListener<TCommand> where TCommand : ICommand
+﻿namespace abc.unity.Core
 {
-    void ReactCommand(TCommand command);
+    public interface ICommandListener<TCommand> where TCommand : ICommand
+    {
+        void ReactCommand(TCommand command);
+    }
 }

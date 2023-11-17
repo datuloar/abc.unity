@@ -15,7 +15,7 @@ namespace abc.unity.Core
         private readonly Dictionary<Type, List<object>> _listenersMap = new(100);
 
         [SerializeField] private ActorTag _tag;
-        [SerializeField] private ActorBlueprint _blueprint;
+        [SerializeField] private List<ActorBlueprint> _initBluprints;
 
         public ActorTag Tag => _tag;
         public bool IsAlive { get; private set; }
@@ -24,9 +24,11 @@ namespace abc.unity.Core
 
         public void Initialize()
         {
-            AddBlueprint(_blueprint);
             ActorsContainer.Add(this);
             IsAlive = true;
+
+            foreach (var blueprint in _initBluprints)
+                AddBlueprint(blueprint);
         }
 
         public void Tick(float deltaTime)

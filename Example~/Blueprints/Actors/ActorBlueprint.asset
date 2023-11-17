@@ -1,18 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-4561261392555982064
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cee0acf92e4260c4ca3f3028f2b4e0f7, type: 3}
-  m_Name: UpScaleBehaviourProvider
-  m_EditorClassIdentifier: 
---- !u!114 &-27846017831272575
+--- !u!114 &-5933081304104188682
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -25,8 +13,20 @@ MonoBehaviour:
   m_Name: UpScaleComponentProvider
   m_EditorClassIdentifier: 
   _value:
-    _maxScale: 200
-    _increment: 2
+    _maxScale: 221
+    _increment: 11
+--- !u!114 &-4362880490536277787
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cee0acf92e4260c4ca3f3028f2b4e0f7, type: 3}
+  m_Name: UpScaleBehaviourProvider
+  m_EditorClassIdentifier: 
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -40,6 +40,6 @@ MonoBehaviour:
   m_Name: ActorBlueprint
   m_EditorClassIdentifier: 
   _components:
-  - {fileID: -27846017831272575}
+  - {fileID: -5933081304104188682}
   _behaviours:
-  - {fileID: -4561261392555982064}
+  - {fileID: -4362880490536277787}
