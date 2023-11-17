@@ -172,8 +172,7 @@ namespace abc.unity.Core
             foreach (var disposable in _disposables)
                 disposable.Dispose();
 
-            if (ActorsContainer.Has(Tag))
-                ActorsContainer.Remove(this);
+            ActorsContainer.Remove(this);
 
             Destroy(gameObject);
         }
