@@ -2,7 +2,7 @@
 
 namespace abc.unity.Core
 {
-    public abstract class BaseComponent<TComponent> : MonoBehaviour where TComponent : IComponent
+    public abstract class BaseComponent<TComponent> : MonoBehaviour, IComponent where TComponent : IComponent
     {
         protected abstract TComponent _component { get; }
 
