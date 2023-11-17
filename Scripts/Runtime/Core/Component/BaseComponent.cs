@@ -2,10 +2,8 @@
 
 namespace abc.unity.Core
 {
-    public abstract class BaseComponent<TComponent> : MonoBehaviour, IComponent where TComponent : IComponent
+        public abstract class BaseComponent<TComponent> : MonoBehaviour, IComponent where TComponent : IComponent
     {
-        protected abstract TComponent _component { get; }
-
         private void Awake()
         {
             if (!TryGetComponent<IComponentsHolder>(out var componentHolder))
@@ -17,10 +15,7 @@ namespace abc.unity.Core
                 return;
             }
 
-            if (_component == null)
-                throw new System.Exception("Component is null" + gameObject.name);
-
-            componentHolder.AddComponent(_component);
+            componentHolder.AddComponent(this);
         }
     }
 }
