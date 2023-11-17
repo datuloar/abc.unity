@@ -29,7 +29,7 @@ namespace abc.unity.Core
 
         private void Start() => Initialize();
 
-        public abstract void Initialize();
+        public virtual void Initialize() { }
 
         public void RemoveSelf() => Actor.RemoveBehaviour<TBehaviour>();
 
