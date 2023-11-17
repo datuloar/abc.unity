@@ -1,1 +1,4 @@
-﻿public struct ActorDeadCommand : ICommand { }
+﻿namespace abc.unity.Core
+{
+    public struct ActorDeadCommand : ICommand { }
+}

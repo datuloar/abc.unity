@@ -52,6 +52,5 @@ class JumpComponent : IComponent {
 Каждый Behaviour знает о Actor, который ими владеет и соответственно может посылать команды другим Behaviour.
 
 # TODO:
-* Добавить блупринты
 * Дописать документацию
 * Реализовать общие Behaviour
