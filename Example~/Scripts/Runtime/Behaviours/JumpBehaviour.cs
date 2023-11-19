@@ -9,7 +9,7 @@ namespace abc.unity.Example
         private IJumpComponent _jumpComponent;
         private IRigidbodyComponent _rigidbodyComponent;
 
-        protected override IJumpBehaviour _behaviour => this;
+        protected override IJumpBehaviour Behaviour => this;
 
         public override void Initialize()
         {

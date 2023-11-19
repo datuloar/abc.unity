@@ -7,8 +7,9 @@ namespace abc.unity.Core
 {
     public class Actor : MonoBehaviour, IActor
     {
-        private readonly List<IFixedTickable> _fixedTickables = new(100);
         private readonly List<ITickable> _tickables = new(100);
+        private readonly List<IFixedTickable> _fixedTickables = new(100);
+        private readonly List<ILateTickable> _lateTickables = new(100);
         private readonly List<IComponent> _components = new(100);
         private readonly List<IDisposable> _disposables = new(100);
         private readonly List<IBehaviour> _behaviours = new(100);
@@ -47,6 +48,15 @@ namespace abc.unity.Core
 
             for (int i = 0; i < _fixedTickables.Count; i++)
                 _fixedTickables[i].FixedTick(fixedDeltaTime);
+        }
+
+        public void LateTick(float deltaTime)
+        {
+            if (!IsAlive)
+                return;
+
+            for (int i = 0; i < _lateTickables.Count; i++)
+                _lateTickables[i].LateTick(deltaTime);
         }
 
         public void AddBlueprint(ActorBlueprint blueprint)
@@ -116,6 +126,9 @@ namespace abc.unity.Core
             if (behaviour is IFixedTickable fixedTickable)
                 _fixedTickables.Add(fixedTickable);
 
+            if (behaviour is ILateTickable lateTickable)
+                _lateTickables.Add(lateTickable);
+
             if (behaviour is IDisposable disposable)
                 _disposables.Add(disposable);
         }
@@ -138,6 +151,8 @@ namespace abc.unity.Core
                 listeners.RemoveAll(b => b.GetType() == type);
 
             _tickables.RemoveAll(t => t.GetType() == type);
+            _fixedTickables.RemoveAll(f => f.GetType() == type);
+            _lateTickables.RemoveAll(l => l.GetType() == type);
             _disposables.RemoveAll(d => d.GetType() == type);
         }
 
