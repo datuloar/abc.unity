@@ -8,7 +8,7 @@ namespace abc.unity.Core
     {
         public IActor Actor { get; set; }
 
-        protected abstract TBehaviour _behaviour { get; }
+        protected abstract TBehaviour Behaviour { get; }
 
         private void Awake()
         {
@@ -21,10 +21,10 @@ namespace abc.unity.Core
                 return;
             }
 
-            if (_behaviour == null)
+            if (Behaviour == null)
                 throw new System.Exception("Behaviour is null" + gameObject.name);
 
-            behaviourReceiver.AddBehaviour(_behaviour);
+            behaviourReceiver.AddBehaviour(Behaviour);
         }
 
         private void Start() => Initialize();

@@ -12,7 +12,8 @@ namespace abc.unity.Core
     ITransformable,
     IInitializable,
     ITickable,
-    IFixedTickable
+    IFixedTickable,
+    ILateTickable
     {
         ActorTag Tag { get; }
     }
