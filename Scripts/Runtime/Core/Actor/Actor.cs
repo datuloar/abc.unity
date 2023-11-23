@@ -93,6 +93,16 @@ namespace abc.unity.Core
             return component;
         }
 
+        public new bool TryGetComponent<TComponent>(out TComponent component) where TComponent : class, IComponent
+        {
+            component = _components.Find(c => c is TComponent) as TComponent;
+
+            if (component == null)
+                return false;
+
+            return true;
+        }
+
         public void AddBehaviour<TBehaviour>(TBehaviour behaviour) where TBehaviour : IBehaviour
         {
             if (HasBehaviour<TBehaviour>())
