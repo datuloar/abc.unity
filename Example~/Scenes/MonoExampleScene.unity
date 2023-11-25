@@ -376,7 +376,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _tag: 1
-  _blueprint: {fileID: 0}
+  _initBluprints: []
+  _initializeInAwake: 1
+  _hasUpdate: 0
+  _hasFixedUpdate: 0
+  _hasLateUpdate: 0
 --- !u!1 &1606831336
 GameObject:
   m_ObjectHideFlags: 0

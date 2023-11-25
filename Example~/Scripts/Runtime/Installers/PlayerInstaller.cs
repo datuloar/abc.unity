@@ -11,8 +11,6 @@ namespace abc.unity.Example
 
         private void Awake()
         {
-            _actor.Initialize();
-
             var input = new StandaloneInputService();
             _playerController = new PlayerController(_actor, input);
         }

@@ -17,19 +17,38 @@ namespace abc.unity.Core
 
         [SerializeField] private ActorTag _tag;
         [SerializeField] private List<ActorBlueprint> _initBluprints;
+        [SerializeField] private bool _initializeInAwake = true;
+        [SerializeField] private bool _hasUpdate = true;
+        [SerializeField] private bool _hasFixedUpdate = true;
+        [SerializeField] private bool _hasLateUpdate = true;
 
         public ActorTag Tag => _tag;
         public bool IsAlive { get; private set; }
+        public bool IsInitialized { get; private set; }
 
         public event Action<IActor> Destroyed;
 
         public void Initialize()
         {
+            if (IsInitialized)
+                return;
+
+            if (_hasUpdate)
+                ActorsUpdateManager.AddTickable(this);
+
+            if (_hasFixedUpdate)
+                ActorsUpdateManager.AddFixedTickable(this);
+
+            if (_hasLateUpdate)
+                ActorsUpdateManager.AddLateTickable(this);
+
             ActorsContainer.Add(this);
-            IsAlive = true;
 
             foreach (var blueprint in _initBluprints)
                 AddBlueprint(blueprint);
+
+            IsAlive = true;
+            IsInitialized = true;
         }
 
         public void Tick(float deltaTime)
@@ -192,12 +211,21 @@ namespace abc.unity.Core
 
         public void Destroy()
         {
+            if (_hasUpdate)
+                ActorsUpdateManager.RemoveTickable(this);
+
+            if (_hasFixedUpdate)
+                ActorsUpdateManager.RemoveFixedTickable(this);
+
+            if (_hasLateUpdate)
+                ActorsUpdateManager.RemoveLateTickable(this);
+
+            ActorsContainer.Remove(this);
+
             Destroyed?.Invoke(this);
 
             foreach (var disposable in _disposables)
                 disposable.Dispose();
-
-            ActorsContainer.Remove(this);
 
             Destroy(gameObject);
         }
