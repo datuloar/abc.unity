@@ -17,7 +17,7 @@ namespace abc.unity.Core
 
         [SerializeField] private ActorTag _tag;
         [SerializeField] private List<ActorBlueprint> _initBluprints;
-        [SerializeField] private bool _initializeInAwake = true;
+        [SerializeField] private bool _initializeOnAwake = true;
         [SerializeField] private bool _hasUpdate = true;
         [SerializeField] private bool _hasFixedUpdate = true;
         [SerializeField] private bool _hasLateUpdate = true;
@@ -27,6 +27,12 @@ namespace abc.unity.Core
         public bool IsInitialized { get; private set; }
 
         public event Action<IActor> Destroyed;
+
+        private void Awake()
+        {
+            if (_initializeOnAwake)
+                Initialize();
+        }
 
         public void Initialize()
         {
