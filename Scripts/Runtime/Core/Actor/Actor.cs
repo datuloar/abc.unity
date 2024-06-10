@@ -29,6 +29,7 @@ namespace abc.unity.Core
         public bool IsAlive { get; private set; }
         public bool IsInitialized { get; private set; }
 
+        public event Action Initialized  = delegate { };
         public event Action Destroyed = delegate { };
         public event Action AliveStateChanged = delegate { };
 
@@ -84,6 +85,8 @@ namespace abc.unity.Core
 
             IsAlive = true;
             IsInitialized = true;
+
+            Initialized.Invoke();
         }
 
         public void Tick(float deltaTime)
@@ -223,6 +226,9 @@ namespace abc.unity.Core
 
         public void ChangeAliveState(bool isAlive)
         {
+            if (IsAlive == isAlive)
+                return;
+
             IsAlive = isAlive;
             AliveStateChanged.Invoke();
         }
