@@ -1,6 +1,6 @@
 {
   "name": "com.abc.unity",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "displayName": "ABC",
   "description": "Actor Behaviour Component - Framework for Unity Game Engine and .Net Platform",
   "unity": "2019.1",
@@ -15,8 +15,8 @@
   "samples": [
     {
       "displayName": "ABS Example",
-      "description": "Configurate Hero",
-      "path": "Example~"
+      "description": "Cube Jump",
+      "path": "~Example"
     }
   ]
 }
