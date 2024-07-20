@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="GitResources~/img.jpg" width="656" height="339" alt="ABC">
+    <img src="GitResources~/img.jpg" width="656" height="239" alt="ABC">
 </p>
 
 # ABC - Actor Behaviour Component простейший C# фреймворк для создания игр!
