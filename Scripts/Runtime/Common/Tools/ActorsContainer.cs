@@ -22,7 +22,7 @@ namespace abc.unity.Common
         {
             foreach(var actor in Instance._actors)
             {
-                if (actor.Tag == tag)
+                if (actor.Tag.Value == tag)
                     return true;
             }
 
@@ -35,7 +35,7 @@ namespace abc.unity.Common
 
             foreach (var actor in Instance._actors)
             {
-                if (actor.Tag == tag)
+                if (actor.Tag.Value == tag)
                     Instance._cachedActorsList.Add(actor);
             }
 
@@ -46,7 +46,7 @@ namespace abc.unity.Common
         {
             foreach (var actor in Instance._actors)
             {
-                if (actor.Tag == tag)
+                if (actor.Tag.Value == tag)
                     return actor;
             }
 

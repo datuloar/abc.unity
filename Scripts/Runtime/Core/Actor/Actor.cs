@@ -16,7 +16,7 @@ namespace abc.unity.Core
         private readonly List<IActorBehaviour> _behaviours = new(100);
         private readonly Dictionary<Type, List<object>> _listenersMap = new(100);
 
-        [SerializeField] private ActorTag _tag;
+        [SerializeField] private ActorReactProperty<ActorTag> _tag;
         [SerializeField] private List<ActorBlueprint> _blueprints;
         [SerializeField] private bool _initializeOnAwake = true;
         [SerializeField] private bool _hasUpdate = true;
@@ -25,13 +25,11 @@ namespace abc.unity.Core
 
         private bool _isDestroyed;
 
-        public ActorTag Tag => _tag;
-        public bool IsAlive { get; private set; }
-        public bool IsInitialized { get; private set; }
+        public IActorReactProperty<bool> IsAlive { get; set; } = new ActorReactProperty<bool>();
+        public IActorReactProperty<bool> IsInitialized { get; private set; } = new ActorReactProperty<bool>();
+        public IActorReactProperty<ActorTag> Tag => _tag;
 
-        public event Action Initialized  = delegate { };
         public event Action Destroyed = delegate { };
-        public event Action AliveStateChanged = delegate { };
 
         private void Awake()
         {
@@ -49,7 +47,7 @@ namespace abc.unity.Core
 
         public void Initialize()
         {
-            if (IsInitialized)
+            if (IsInitialized.Value)
                 return;
 
             foreach (var blueprint in _blueprints)
@@ -83,10 +81,8 @@ namespace abc.unity.Core
             foreach (var blueprint in _blueprints)
                 AddBlueprint(blueprint);
 
-            IsAlive = true;
-            IsInitialized = true;
-
-            Initialized.Invoke();
+            IsAlive.Value = true;
+            IsInitialized.Value = true;
         }
 
         public void Tick(float deltaTime)
@@ -222,15 +218,6 @@ namespace abc.unity.Core
                         commandListener.ReactActorCommand(command);
                 }
             }
-        }
-
-        public void ChangeAliveState(bool isAlive)
-        {
-            if (IsAlive == isAlive)
-                return;
-
-            IsAlive = isAlive;
-            AliveStateChanged.Invoke();
         }
 
         public void Destroy()
