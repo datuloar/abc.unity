@@ -16,6 +16,9 @@ namespace abc.unity.Core
         void AddData<TData>(TData data) where TData : IActorData;
         void RemoveData<TData>() where TData : IActorData;
 
+        void Kill();
+        void Revive();
+
         void Destroy();
     }
 }

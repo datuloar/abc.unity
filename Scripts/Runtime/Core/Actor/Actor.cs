@@ -24,12 +24,14 @@ namespace abc.unity.Core
         [SerializeField] private bool _hasLateUpdate = true;
 
         private bool _isDestroyed;
+        private readonly ActorReactProperty<bool> _isAlive = new();
+        private readonly ActorReactProperty<bool> _isInitialized = new();
 
-        public IActorReactProperty<bool> IsAlive { get; set; } = new ActorReactProperty<bool>();
-        public IActorReactProperty<bool> IsInitialized { get; private set; } = new ActorReactProperty<bool>();
-        public IActorReactProperty<ActorTag> Tag => _tag;
+        public IReadOnlyActorReactProperty<bool> IsAlive => _isAlive;
+        public IReadOnlyActorReactProperty<bool> IsInitialized => _isInitialized;
+        public IReadOnlyActorReactProperty<ActorTag> Tag => _tag;
 
-        public event Action Destroyed = delegate { };
+        public event Action Destroyed;
 
         private void Awake()
         {
@@ -47,25 +49,16 @@ namespace abc.unity.Core
 
         public void Initialize()
         {
-            if (IsInitialized.Value)
+            if (_isInitialized.Value)
                 return;
 
-            foreach (var blueprint in _blueprints)
-                AddBlueprint(blueprint);
+            for (int i = 0; i < _blueprints.Count; i++)
+                AddBlueprint(_blueprints[i]);
 
             FetchModules();
 
-            foreach (var data in _data)
-                data.PreInitialize();
-
-            foreach (var data in _data)
-                data.Initialize();
-
-            foreach (var behaviour in _behaviours)
-                behaviour.PreInitialize();
-
-            foreach (var behaviour in _behaviours)
-                behaviour.Initialize();
+            InitializeDataAndBehaviours(_data);
+            InitializeDataAndBehaviours(_behaviours);
 
             if (_hasUpdate)
                 ActorsUpdateManager.AddTickable(this);
@@ -78,11 +71,8 @@ namespace abc.unity.Core
 
             ActorsContainer.Add(this);
 
-            foreach (var blueprint in _blueprints)
-                AddBlueprint(blueprint);
-
-            IsAlive.Value = true;
-            IsInitialized.Value = true;
+            _isAlive.Value = true;
+            _isInitialized.Value = true;
         }
 
         public void Tick(float deltaTime)
@@ -115,36 +105,58 @@ namespace abc.unity.Core
                 AddBehaviour(behaviour.GetBehaviour());
         }
 
-        public bool HasData<TData>() where TData : IActorData =>
-            _data.Exists(d => d is TData);
+        public bool HasData<TData>() where TData : IActorData
+        {
+            for (int i = 0; i < _data.Count; i++)
+            {
+                if (_data[i] is TData)
+                    return true;
+            }
+
+            return false;
+        }
 
         public void AddData<TData>(TData data) where TData : IActorData
         {
-            if (!HasData<TData>())
-                _data.Add(data);
+            if (_data.Contains(data))
+                return;
+
+            _data.Add(data);
         }
 
-        public void RemoveData<TData>() where TData : IActorData =>
-            _data.RemoveAll(c => c is TData);
+        public void RemoveData<TData>() where TData : IActorData
+        {
+            for (int i = _data.Count - 1; i >= 0; i--)
+            {
+                if (_data[i] is TData)
+                    _data.RemoveAt(i);
+            }
+        }
 
         public TData GetData<TData>() where TData : class, IActorData
         {
-            var data = _data.Find(d => d is TData) as TData;
+            for (int i = 0; i < _data.Count; i++)
+            {
+                if (_data[i] is TData typedData)
+                    return typedData;
+            }
 
-            if (data == null)
-                throw new InvalidOperationException($"Actor-{gameObject.name} does not have a data of type {typeof(TData).Name}");
-
-            return data;
+            throw new InvalidOperationException($"Actor-{gameObject.name} does not have a data of type {typeof(TData).Name}");
         }
 
         public bool TryGetData<TData>(out TData data) where TData : class, IActorData
         {
-            data = _data.Find(d => d is TData) as TData;
+            for (int i = 0; i < _data.Count; i++)
+            {
+                if (_data[i] is TData typedData)
+                {
+                    data = typedData;
+                    return true;
+                }
+            }
 
-            if (data == null)
-                return false;
-
-            return true;
+            data = null;
+            return false;
         }
 
         public void AddBehaviour<TBehaviour>(TBehaviour behaviour) where TBehaviour : IActorBehaviour
@@ -155,15 +167,15 @@ namespace abc.unity.Core
             _behaviours.Add(behaviour);
             behaviour.Owner = this;
 
-            var interfaces = behaviour.GetType().GetInterfaces();
+            var behaviourType = behaviour.GetType();
+            var interfaces = behaviourType.GetInterfaces();
 
-            foreach (var implementedInterface in interfaces)
+            for (int i = 0; i < interfaces.Length; i++)
             {
-                if (implementedInterface.IsGenericType
-                    && implementedInterface.GetGenericTypeDefinition() == typeof(IActorCommandListener<>))
+                var implementedInterface = interfaces[i];
+                if (implementedInterface.IsGenericType && implementedInterface.GetGenericTypeDefinition() == typeof(IActorCommandListener<>))
                 {
                     var commandType = implementedInterface.GetGenericArguments()[0];
-
                     if (!_listenersMap.TryGetValue(commandType, out var listeners))
                     {
                         listeners = new List<object>();
@@ -184,33 +196,56 @@ namespace abc.unity.Core
                 _lateTickables.Add(lateTickable);
         }
 
-        public bool HasBehaviour<TBehaviour>() where TBehaviour : IActorBehaviour =>
-            _behaviours.OfType<TBehaviour>().Any();
+        public bool HasBehaviour<TBehaviour>() where TBehaviour : IActorBehaviour
+        {
+            for (int i = 0; i < _behaviours.Count; i++)
+            {
+                if (_behaviours[i] is TBehaviour)
+                    return true;
+            }
+
+            return false;
+        }
 
         public void RemoveBehaviour<TBehaviour>() where TBehaviour : IActorBehaviour
         {
-            var type = typeof(TBehaviour);
-            var behaviorsToRemove = _behaviours.FindAll(b => b.GetType() == type);
-
-            foreach (var behavior in behaviorsToRemove)
+            for (int i = _behaviours.Count - 1; i >= 0; i--)
             {
-                _behaviours.Remove(behavior);
-                behavior.Owner = null;
+                if (_behaviours[i] is TBehaviour)
+                    _behaviours.RemoveAt(i);
             }
 
             foreach (var listeners in _listenersMap.Values)
-                listeners.RemoveAll(b => b.GetType() == type);
+            {
+                for (int i = listeners.Count - 1; i >= 0; i--)
+                {
+                    if (listeners[i] is TBehaviour)
+                        listeners.RemoveAt(i);
+                }
+            }
 
-            _tickables.RemoveAll(t => t.GetType() == type);
-            _fixedTickables.RemoveAll(f => f.GetType() == type);
-            _lateTickables.RemoveAll(l => l.GetType() == type);
+            for (int i = _tickables.Count - 1; i >= 0; i--)
+            {
+                if (_tickables[i] is TBehaviour)
+                    _tickables.RemoveAt(i);
+            }
+
+            for (int i = _fixedTickables.Count - 1; i >= 0; i--)
+            {
+                if (_fixedTickables[i] is TBehaviour)
+                    _fixedTickables.RemoveAt(i);
+            }
+
+            for (int i = _lateTickables.Count - 1; i >= 0; i--)
+            {
+                if (_lateTickables[i] is TBehaviour)
+                    _lateTickables.RemoveAt(i);
+            }
         }
 
         public void SendCommand<TCommand>(TCommand command = default) where TCommand : struct, IActorCommand
         {
-            var commandType = typeof(TCommand);
-
-            if (_listenersMap.TryGetValue(commandType, out var listeners))
+            if (_listenersMap.TryGetValue(typeof(TCommand), out var listeners))
             {
                 for (int i = 0; i < listeners.Count; i++)
                 {
@@ -220,11 +255,15 @@ namespace abc.unity.Core
             }
         }
 
+        public void Kill() => _isAlive.Value = false;
+
+        public void Revive() => _isAlive.Value = true;
+
         public void Destroy()
         {
             CleanUp();
 
-            Destroyed.Invoke();
+            Destroyed?.Invoke();
 
             _isDestroyed = true;
 
@@ -235,13 +274,24 @@ namespace abc.unity.Core
         {
             var modules = GetComponentsInChildren<IActorModule>(true);
 
-            foreach (var module in modules)
+            for (int i = 0; i < modules.Length; i++)
             {
+                var module = modules[i];
                 if (module is IActorData actorData)
-                    _data.Add(actorData);
+                    AddData(actorData);
 
                 if (module is IActorBehaviour actorBehaviour)
                     AddBehaviour(actorBehaviour);
+            }
+        }
+
+        private void InitializeDataAndBehaviours<T>(List<T> items) where T : IActorModule
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                var item = items[i];
+                item.PreInitialize();
+                item.Initialize();
             }
         }
 
@@ -258,11 +308,11 @@ namespace abc.unity.Core
 
             ActorsContainer.Remove(this);
 
-            foreach (var behaviour in _behaviours)
-                behaviour.CleanUp();
+            for (int i = 0; i < _behaviours.Count; i++)
+                _behaviours[i].CleanUp();
 
-            foreach (var data in _data)
-                data.CleanUp();
+            for (int i = 0; i < _data.Count; i++)
+                _data[i].CleanUp();
         }
     }
 }

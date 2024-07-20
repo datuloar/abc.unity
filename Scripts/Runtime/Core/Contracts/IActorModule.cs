@@ -1,4 +1,10 @@
 ﻿namespace abc.unity.Core
 {
-    public interface IActorModule { }
+    public interface IActorModule 
+    {
+        void PreInitialize() { }
+        void Initialize() { }
+
+        void CleanUp() { }
+    }
 }

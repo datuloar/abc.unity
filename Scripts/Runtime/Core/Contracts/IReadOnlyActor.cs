@@ -5,8 +5,8 @@ namespace abc.unity.Core
 {
     public interface IReadOnlyActor : IUnityView
     {
-        IActorReactProperty<bool> IsAlive { get; set; }
-        IActorReactProperty<ActorTag> Tag { get; }
+        IReadOnlyActorReactProperty<bool> IsAlive { get; }
+        IReadOnlyActorReactProperty<ActorTag> Tag { get; }
 
         event Action Destroyed;
 
