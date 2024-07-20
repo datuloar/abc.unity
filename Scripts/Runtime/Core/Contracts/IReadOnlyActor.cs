@@ -5,12 +5,10 @@ namespace abc.unity.Core
 {
     public interface IReadOnlyActor : IUnityView
     {
-        ActorTag Tag { get; }
-        bool IsAlive { get; }
+        IActorReactProperty<bool> IsAlive { get; set; }
+        IActorReactProperty<ActorTag> Tag { get; }
 
-        event Action Initialized;
         event Action Destroyed;
-        event Action AliveStateChanged;
 
         bool HasBehaviour<TBehaviour>() where TBehaviour : IActorBehaviour;
 
