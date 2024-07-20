@@ -1,6 +1,6 @@
 {
   "name": "com.abc.unity",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "displayName": "ABC",
   "description": "Actor Behaviour Component - Framework for Unity Game Engine and .Net Platform",
   "unity": "2019.1",
@@ -11,12 +11,5 @@
   "author": {
     "name": "datuloar",
     "email": "datuloar@mail.ru"
-  },
-  "samples": [
-    {
-      "displayName": "ABS Example",
-      "description": "Cube Jump",
-      "path": "Example~"
-    }
-  ]
+  }
 }
