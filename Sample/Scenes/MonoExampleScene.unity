@@ -363,7 +363,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 080a3301694d9f2418398db6819bc07a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _tag: 0
+  _tag:
+    _value: 0
   _blueprints: []
   _initializeOnAwake: 1
   _hasUpdate: 1
