@@ -7,6 +7,7 @@ namespace abc.unity.Core
     {
         IReadOnlyActorReactProperty<bool> IsAlive { get; }
         IReadOnlyActorReactProperty<ActorTag> Tag { get; }
+        IReadOnlyActorReactProperty<bool> IsInitialized { get; }
 
         event Action Destroyed;
 

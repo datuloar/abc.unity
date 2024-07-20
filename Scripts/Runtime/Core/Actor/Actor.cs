@@ -1,7 +1,6 @@
 using abc.unity.Common;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace abc.unity.Core
@@ -15,6 +14,8 @@ namespace abc.unity.Core
         private readonly List<IActorData> _data = new(100);
         private readonly List<IActorBehaviour> _behaviours = new(100);
         private readonly Dictionary<Type, List<object>> _listenersMap = new(100);
+        private readonly ActorReactProperty<bool> _isAlive = new();
+        private readonly ActorReactProperty<bool> _isInitialized = new();
 
         [SerializeField] private ActorReactProperty<ActorTag> _tag;
         [SerializeField] private List<ActorBlueprint> _blueprints;
@@ -24,8 +25,6 @@ namespace abc.unity.Core
         [SerializeField] private bool _hasLateUpdate = true;
 
         private bool _isDestroyed;
-        private readonly ActorReactProperty<bool> _isAlive = new();
-        private readonly ActorReactProperty<bool> _isInitialized = new();
 
         public IReadOnlyActorReactProperty<bool> IsAlive => _isAlive;
         public IReadOnlyActorReactProperty<bool> IsInitialized => _isInitialized;
