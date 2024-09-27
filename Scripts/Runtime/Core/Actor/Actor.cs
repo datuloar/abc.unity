@@ -8,12 +8,14 @@ namespace abc.unity.Core
     [DefaultExecutionOrder(-99999)]
     public class Actor : MonoBehaviour, IActor
     {
-        private readonly List<ITickable> _tickables = new(100);
-        private readonly List<IFixedTickable> _fixedTickables = new(100);
-        private readonly List<ILateTickable> _lateTickables = new(100);
-        private readonly List<IActorData> _data = new(100);
-        private readonly List<IActorBehaviour> _behaviours = new(100);
-        private readonly Dictionary<Type, List<object>> _listenersMap = new(100);
+        private readonly ActorFastList<ITickable> _tickables = new();
+        private readonly ActorFastList<IFixedTickable> _fixedTickables = new();
+        private readonly ActorFastList<ILateTickable> _lateTickables = new();
+
+        private readonly List<IActorData> _data = new(64);
+        private readonly List<IActorBehaviour> _behaviours = new(64);
+
+        private readonly Dictionary<Type, List<object>> _listenersMap = new(64);
         private readonly ActorReactProperty<bool> _isAlive = new();
         private readonly ActorReactProperty<bool> _isInitialized = new();
 
