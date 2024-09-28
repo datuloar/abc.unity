@@ -94,7 +94,8 @@ namespace abc.unity.Common
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int BinarySearch(int index, int count, T item, IComparer<T> comparer) => Array.BinarySearch(_items, index, count, item, comparer ?? Comparer<T>.Default);
-
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int RemoveAll(Predicate<T> match)
         {
             if (match == null)
