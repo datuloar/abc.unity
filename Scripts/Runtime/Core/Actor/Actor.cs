@@ -1,10 +1,13 @@
 using abc.unity.Common;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using Unity.IL2CPP.CompilerServices;
 using UnityEngine;
 
 namespace abc.unity.Core
 {
+    [Il2CppSetOption(Option.NullChecks | Option.ArrayBoundsChecks, false)]
     [DefaultExecutionOrder(-99999)]
     public class Actor : MonoBehaviour, IActor
     {
@@ -12,10 +15,10 @@ namespace abc.unity.Core
         private readonly ActorFastList<IFixedTickable> _fixedTickables = new();
         private readonly ActorFastList<ILateTickable> _lateTickables = new();
 
-        private readonly List<IActorData> _data = new(64);
-        private readonly List<IActorBehaviour> _behaviours = new(64);
-
+        private readonly Dictionary<Type, IActorData> _dataMap = new();
+        private readonly Dictionary<Type, IActorBehaviour> _behavioursMap = new();
         private readonly Dictionary<Type, List<object>> _listenersMap = new(64);
+
         private readonly ActorReactProperty<bool> _isAlive = new();
         private readonly ActorReactProperty<bool> _isInitialized = new();
 
@@ -42,25 +45,34 @@ namespace abc.unity.Core
 
         private void OnDestroy()
         {
-            if (_isDestroyed)
-                return;
-
-            CleanUp();
+            if (!_isDestroyed)
+                CleanUp();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Initialize()
         {
             if (_isInitialized.Value)
                 return;
 
-            for (int i = 0; i < _blueprints.Count; i++)
-                AddBlueprint(_blueprints[i]);
+            foreach (var blueprint in _blueprints)
+                AddBlueprint(blueprint);
 
             FetchModules();
 
-            InitializeDataAndBehaviours(_data);
-            InitializeDataAndBehaviours(_behaviours);
+            InitializeDataAndBehaviours(_dataMap.Values);
+            InitializeDataAndBehaviours(_behavioursMap.Values);
 
+            RegisterForUpdates();
+
+            ActorsContainer.Add(this);
+
+            _isAlive.Value = true;
+            _isInitialized.Value = true;
+        }
+
+        private void RegisterForUpdates()
+        {
             if (_hasUpdate)
                 ActorsUpdateManager.AddTickable(this);
 
@@ -69,35 +81,33 @@ namespace abc.unity.Core
 
             if (_hasLateUpdate)
                 ActorsUpdateManager.AddLateTickable(this);
-
-            ActorsContainer.Add(this);
-
-            _isAlive.Value = true;
-            _isInitialized.Value = true;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Tick(float deltaTime)
         {
             for (int i = 0; i < _tickables.Count; i++)
                 _tickables[i].Tick(deltaTime);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FixedTick(float fixedDeltaTime)
         {
             for (int i = 0; i < _fixedTickables.Count; i++)
                 _fixedTickables[i].FixedTick(fixedDeltaTime);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void LateTick(float deltaTime)
         {
             for (int i = 0; i < _lateTickables.Count; i++)
                 _lateTickables[i].LateTick(deltaTime);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddBlueprint(ActorBlueprint blueprint)
         {
-            if (blueprint == null)
-                return;
+            if (blueprint == null) return;
 
             foreach (var data in blueprint.Data)
                 AddData(data.GetData());
@@ -106,86 +116,57 @@ namespace abc.unity.Core
                 AddBehaviour(behaviour.GetBehaviour());
         }
 
-        public bool HasData<TData>() where TData : IActorData
-        {
-            for (int i = 0; i < _data.Count; i++)
-            {
-                if (_data[i] is TData)
-                    return true;
-            }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool HasData<TData>() where TData : IActorData =>
+            _dataMap.ContainsKey(typeof(TData));
 
-            return false;
-        }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddData<TData>(TData data) where TData : IActorData
         {
-            if (_data.Contains(data))
-                return;
+            var dataType = data.GetType();
 
-            _data.Add(data);
-        }
-
-        public void RemoveData<TData>() where TData : IActorData
-        {
-            for (int i = _data.Count - 1; i >= 0; i--)
+            if (HasData<TData>())
             {
-                if (_data[i] is TData)
-                    _data.RemoveAt(i);
+                Debug.LogError($"Data of type {dataType.Name} is already added to Actor-{gameObject.name}");
+                return;
             }
+
+            _dataMap.Add(dataType, data);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TData GetData<TData>() where TData : class, IActorData
         {
-            for (int i = 0; i < _data.Count; i++)
-            {
-                if (_data[i] is TData typedData)
-                    return typedData;
-            }
+            if (_dataMap.TryGetValue(typeof(TData), out var data))
+                return data as TData;
 
-            throw new InvalidOperationException($"Actor-{gameObject.name} does not have a data of type {typeof(TData).Name}");
+            throw new InvalidOperationException($"Actor-{gameObject.name} does not have data of type {typeof(TData).Name}");
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetData<TData>(out TData data) where TData : class, IActorData
         {
-            for (int i = 0; i < _data.Count; i++)
+            if (_dataMap.TryGetValue(typeof(TData), out var result))
             {
-                if (_data[i] is TData typedData)
-                {
-                    data = typedData;
-                    return true;
-                }
+                data = result as TData;
+                return true;
             }
 
             data = null;
             return false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void RemoveData<TData>() where TData : IActorData => _dataMap.Remove(typeof(TData));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddBehaviour<TBehaviour>(TBehaviour behaviour) where TBehaviour : IActorBehaviour
         {
-            if (_behaviours.Contains(behaviour))
-                return;
-
-            _behaviours.Add(behaviour);
+            var behaviourType = behaviour.GetType();
+            _behavioursMap[typeof(TBehaviour)] = behaviour;
             behaviour.Owner = this;
 
-            var behaviourType = behaviour.GetType();
-            var interfaces = behaviourType.GetInterfaces();
-
-            for (int i = 0; i < interfaces.Length; i++)
-            {
-                var implementedInterface = interfaces[i];
-                if (implementedInterface.IsGenericType && implementedInterface.GetGenericTypeDefinition() == typeof(IActorCommandListener<>))
-                {
-                    var commandType = implementedInterface.GetGenericArguments()[0];
-                    if (!_listenersMap.TryGetValue(commandType, out var listeners))
-                    {
-                        listeners = new List<object>();
-                        _listenersMap[commandType] = listeners;
-                    }
-
-                    listeners.Add(behaviour);
-                }
-            }
+            RegisterListeners(behaviour, behaviourType);
 
             if (behaviour is ITickable tickable)
                 _tickables.Add(tickable);
@@ -197,69 +178,66 @@ namespace abc.unity.Core
                 _lateTickables.Add(lateTickable);
         }
 
-        public bool HasBehaviour<TBehaviour>() where TBehaviour : IActorBehaviour
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void RegisterListeners(IActorBehaviour behaviour, Type behaviourType)
         {
-            for (int i = 0; i < _behaviours.Count; i++)
-            {
-                if (_behaviours[i] is TBehaviour)
-                    return true;
-            }
+            var interfaces = behaviourType.GetInterfaces();
 
-            return false;
-        }
-
-        public void RemoveBehaviour<TBehaviour>() where TBehaviour : IActorBehaviour
-        {
-            for (int i = _behaviours.Count - 1; i >= 0; i--)
+            foreach (var implementedInterface in interfaces)
             {
-                if (_behaviours[i] is TBehaviour)
-                    _behaviours.RemoveAt(i);
-            }
-
-            foreach (var listeners in _listenersMap.Values)
-            {
-                for (int i = listeners.Count - 1; i >= 0; i--)
+                if (implementedInterface.IsGenericType
+                    && implementedInterface.GetGenericTypeDefinition() == typeof(IActorCommandListener<>))
                 {
-                    if (listeners[i] is TBehaviour)
-                        listeners.RemoveAt(i);
+                    var commandType = implementedInterface.GetGenericArguments()[0];
+
+                    if (!_listenersMap.TryGetValue(commandType, out var listeners))
+                    {
+                        listeners = new List<object>();
+                        _listenersMap[commandType] = listeners;
+                    }
+
+                    listeners.Add(behaviour);
                 }
             }
-
-            for (int i = _tickables.Count - 1; i >= 0; i--)
-            {
-                if (_tickables[i] is TBehaviour)
-                    _tickables.RemoveAt(i);
-            }
-
-            for (int i = _fixedTickables.Count - 1; i >= 0; i--)
-            {
-                if (_fixedTickables[i] is TBehaviour)
-                    _fixedTickables.RemoveAt(i);
-            }
-
-            for (int i = _lateTickables.Count - 1; i >= 0; i--)
-            {
-                if (_lateTickables[i] is TBehaviour)
-                    _lateTickables.RemoveAt(i);
-            }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool HasBehaviour<TBehaviour>() where TBehaviour : IActorBehaviour =>
+            _behavioursMap.ContainsKey(typeof(TBehaviour));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void RemoveBehaviour<TBehaviour>() where TBehaviour : IActorBehaviour
+        {
+            _behavioursMap.Remove(typeof(TBehaviour));
+
+            foreach (var listeners in _listenersMap.Values)
+                listeners.RemoveAll(listener => listener is TBehaviour);
+
+            _tickables.RemoveAll(t => t is TBehaviour);
+            _fixedTickables.RemoveAll(t => t is TBehaviour);
+            _lateTickables.RemoveAll(t => t is TBehaviour);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SendCommand<TCommand>(TCommand command = default) where TCommand : struct, IActorCommand
         {
             if (_listenersMap.TryGetValue(typeof(TCommand), out var listeners))
             {
-                for (int i = 0; i < listeners.Count; i++)
+                foreach (var listener in listeners)
                 {
-                    if (listeners[i] is IActorCommandListener<TCommand> commandListener)
+                    if (listener is IActorCommandListener<TCommand> commandListener)
                         commandListener.ReactActorCommand(command);
                 }
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Kill() => _isAlive.Value = false;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Revive() => _isAlive.Value = true;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Destroy()
         {
             CleanUp();
@@ -271,13 +249,11 @@ namespace abc.unity.Core
             Destroy(gameObject);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void FetchModules()
         {
-            var modules = GetComponentsInChildren<IActorModule>(true);
-
-            for (int i = 0; i < modules.Length; i++)
+            foreach (var module in GetComponentsInChildren<IActorModule>(true))
             {
-                var module = modules[i];
                 if (module is IActorData actorData)
                     AddData(actorData);
 
@@ -286,16 +262,17 @@ namespace abc.unity.Core
             }
         }
 
-        private void InitializeDataAndBehaviours<T>(List<T> items) where T : IActorModule
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void InitializeDataAndBehaviours<T>(IEnumerable<T> items) where T : IActorModule
         {
-            for (int i = 0; i < items.Count; i++)
+            foreach (var item in items)
             {
-                var item = items[i];
                 item.PreInitialize();
                 item.Initialize();
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CleanUp()
         {
             if (_hasUpdate)
@@ -309,11 +286,11 @@ namespace abc.unity.Core
 
             ActorsContainer.Remove(this);
 
-            for (int i = 0; i < _behaviours.Count; i++)
-                _behaviours[i].CleanUp();
+            foreach (var behaviour in _behavioursMap.Values)
+                behaviour.CleanUp();
 
-            for (int i = 0; i < _data.Count; i++)
-                _data[i].CleanUp();
+            foreach (var data in _dataMap.Values)
+                data.CleanUp();
         }
     }
 }

@@ -1,8 +1,9 @@
-﻿using UnityEngine;
+﻿using abc.unity.Core;
+using UnityEngine;
 
 namespace abc.unity.Example
 {
-    public class RigidbodyPhysicsData : MonoBehaviour, IPhysicsData
+    public class RigidbodyPhysicsData : MonoBehaviour, IActorData
     {
         [SerializeField] private Rigidbody _rigidbody;
 
