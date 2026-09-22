@@ -1,15 +1,27 @@
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+
 using UnityEngine;
 
-namespace abc.unity.Core
+namespace Abc.Unity
 {
+    [HelpURL("https://github.com/datuloar/abc.unity#blueprints")]
     [CreateAssetMenu(fileName = "New Actor Blueprint", menuName = "ABC/Blueprints/Actor", order = 51)]
-    public class ActorBlueprint : ScriptableObject
+    public sealed class ActorBlueprint : ScriptableObject
     {
-        [SerializeReference] private List<ActorDataProviderBase> _data;
-        [SerializeReference] private List<ActorBehaviourProviderBase> _behaviours;
+        [SerializeField] private List<ActorDataProviderBase> _data = new List<ActorDataProviderBase>();
+        [SerializeField] private List<ActorBehaviourProviderBase> _behaviours = new List<ActorBehaviourProviderBase>();
 
-        public IEnumerable<ActorDataProviderBase> Data => _data;
-        public IEnumerable<ActorBehaviourProviderBase> Behaviour => _behaviours;
+        private ReadOnlyCollection<ActorDataProviderBase> _dataView;
+        private ReadOnlyCollection<ActorBehaviourProviderBase> _behaviourView;
+
+        public IReadOnlyList<ActorDataProviderBase> Data => _dataView ??= _data.AsReadOnly();
+        public IReadOnlyList<ActorBehaviourProviderBase> Behaviours => _behaviourView ??= _behaviours.AsReadOnly();
+
+        private void OnValidate()
+        {
+            _dataView = null;
+            _behaviourView = null;
+        }
     }
 }

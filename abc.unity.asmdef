@@ -1,3 +1,5 @@
 {
-	"name": "abc.unity"
+    "name": "abc.unity",
+    "rootNamespace": "Abc.Unity",
+    "autoReferenced": true
 }

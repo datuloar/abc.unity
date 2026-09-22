@@ -1,4 +1,4 @@
-﻿namespace abc.unity.Core
+namespace Abc.Unity
 {
     public interface IActorCommandListener<TCommand> where TCommand : IActorCommand
     {

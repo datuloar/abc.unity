@@ -1,6 +1,6 @@
-﻿namespace abc.unity.Core
+namespace Abc.Unity
 {
-    public interface IActorModule 
+    public interface IActorModule
     {
         void PreInitialize() { }
         void Initialize() { }

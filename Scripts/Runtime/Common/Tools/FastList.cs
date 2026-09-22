@@ -1,14 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using Unity.IL2CPP.CompilerServices;
 
-namespace abc.unity.Common
+namespace Abc.Unity
 {
-    [Il2CppSetOption(Option.NullChecks | Option.ArrayBoundsChecks, false)]
-    public class ActorFastList<T>
+    internal sealed class ActorFastList<T>
     {
+        private const int MaxArrayLength = 0x7FEFFFFF;
+
         private T[] _items = Array.Empty<T>();
+
+        public ActorFastList()
+        {
+        }
+
+        public ActorFastList(int capacity)
+        {
+            if (capacity < 0)
+                throw new ArgumentOutOfRangeException(nameof(capacity));
+
+            if (capacity > 0)
+                _items = new T[capacity];
+        }
 
         public int Count { get; private set; }
 
@@ -17,7 +30,14 @@ namespace abc.unity.Common
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _items.Length;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => Array.Resize(ref _items, value);
+            set
+            {
+                if (value < Count)
+                    throw new ArgumentOutOfRangeException(nameof(value));
+
+                if (value != _items.Length)
+                    Array.Resize(ref _items, value);
+            }
         }
 
         public Span<T> Span
@@ -35,7 +55,13 @@ namespace abc.unity.Common
         public ref T this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => ref _items[index];
+            get
+            {
+                if ((uint)index >= (uint)Count)
+                    throw new ArgumentOutOfRangeException(nameof(index));
+
+                return ref _items[index];
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -63,7 +89,10 @@ namespace abc.unity.Common
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveAt(int index)
         {
-            Count -= 1;
+            if ((uint)index >= (uint)Count)
+                throw new ArgumentOutOfRangeException(nameof(index));
+
+            Count--;
 
             if (index < Count)
                 Array.Copy(_items, index + 1, _items, index, Count - index);
@@ -72,11 +101,28 @@ namespace abc.unity.Common
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void RemoveAtSwapBack(int index)
+        {
+            if ((uint)index >= (uint)Count)
+                throw new ArgumentOutOfRangeException(nameof(index));
+
+            var lastIndex = --Count;
+            _items[index] = _items[lastIndex];
+            _items[lastIndex] = default;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int IndexOf(T item) => Array.IndexOf(_items, item, 0, Count);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Contains(T item) => IndexOf(item) >= 0;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Insert(int index, T item)
         {
+            if ((uint)index > (uint)Count)
+                throw new ArgumentOutOfRangeException(nameof(index));
+
             EnsureCapacity(Count + 1);
 
             if (index < Count)
@@ -94,7 +140,25 @@ namespace abc.unity.Common
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int BinarySearch(int index, int count, T item, IComparer<T> comparer) => Array.BinarySearch(_items, index, count, item, comparer ?? Comparer<T>.Default);
-        
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Clear()
+        {
+            if (Count == 0)
+                return;
+
+            Array.Clear(_items, 0, Count);
+            Count = 0;
+        }
+
+        public void TrimExcess()
+        {
+            if (Count == _items.Length)
+                return;
+
+            Array.Resize(ref _items, Count);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int RemoveAll(Predicate<T> match)
         {
@@ -103,10 +167,10 @@ namespace abc.unity.Common
 
             var freeIndex = 0;
 
-            while (freeIndex < Count && !match(_items[freeIndex])) 
+            while (freeIndex < Count && !match(_items[freeIndex]))
                 freeIndex++;
 
-            if (freeIndex >= Count) 
+            if (freeIndex >= Count)
                 return 0;
 
             var current = freeIndex + 1;
@@ -129,8 +193,21 @@ namespace abc.unity.Common
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EnsureCapacity(int min)
         {
-            if (Capacity < min)
-                Capacity = MathHelpers.NextPowerOf2(min);
+            if (_items.Length >= min)
+                return;
+
+            if (min < 0 || min > MaxArrayLength)
+                throw new OutOfMemoryException();
+
+            var nextCapacity = _items.Length == 0 ? 4 : _items.Length * 2;
+
+            if ((uint)nextCapacity > MaxArrayLength)
+                nextCapacity = MaxArrayLength;
+
+            if (nextCapacity < min)
+                nextCapacity = min;
+
+            Capacity = nextCapacity;
         }
     }
 }

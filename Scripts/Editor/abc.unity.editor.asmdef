@@ -1,0 +1,11 @@
+{
+    "name": "abc.unity.editor",
+    "rootNamespace": "Abc.Unity.Editor",
+    "references": [
+        "abc.unity"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "autoReferenced": true
+}

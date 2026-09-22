@@ -1,296 +1,310 @@
-using abc.unity.Common;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using Unity.IL2CPP.CompilerServices;
+
 using UnityEngine;
 
-namespace abc.unity.Core
+namespace Abc.Unity
 {
-    [Il2CppSetOption(Option.NullChecks | Option.ArrayBoundsChecks, false)]
-    [DefaultExecutionOrder(-99999)]
-    public class Actor : MonoBehaviour, IActor
+    [DisallowMultipleComponent]
+    [AddComponentMenu("ABC/Actor")]
+    [HelpURL("https://github.com/datuloar/abc.unity")]
+    [DefaultExecutionOrder(-10000)]
+    public sealed partial class Actor : MonoBehaviour, IActor, IActorView
     {
-        private readonly ActorFastList<ITickable> _tickables = new();
-        private readonly ActorFastList<IFixedTickable> _fixedTickables = new();
-        private readonly ActorFastList<ILateTickable> _lateTickables = new();
+        private enum LifecyclePhase
+        {
+            Uninitialized,
+            Initializing,
+            Initialized,
+            CleaningUp,
+            Disposed
+        }
 
-        private readonly Dictionary<Type, IActorData> _dataMap = new();
-        private readonly Dictionary<Type, IActorBehaviour> _behavioursMap = new();
-        private readonly Dictionary<Type, List<object>> _listenersMap = new(64);
+        private readonly ActorReactProperty<bool> _isAlive = new ActorReactProperty<bool>();
+        private readonly ActorReactProperty<bool> _isInitialized = new ActorReactProperty<bool>();
+        private readonly ActorUpdateRegistration _updateRegistration = new ActorUpdateRegistration();
+        private readonly List<MonoBehaviour> _componentBuffer = new List<MonoBehaviour>();
 
-        private readonly ActorReactProperty<bool> _isAlive = new();
-        private readonly ActorReactProperty<bool> _isInitialized = new();
-
-        [SerializeField] private ActorReactProperty<ActorTag> _tag;
-        [SerializeField] private List<ActorBlueprint> _blueprints;
+        [SerializeField] private ActorReactProperty<ActorTag> _tag = new ActorReactProperty<ActorTag>();
+        [SerializeField] private List<ActorBlueprint> _blueprints = new List<ActorBlueprint>();
         [SerializeField] private bool _initializeOnAwake = true;
         [SerializeField] private bool _hasUpdate = true;
         [SerializeField] private bool _hasFixedUpdate = true;
         [SerializeField] private bool _hasLateUpdate = true;
 
-        private bool _isDestroyed;
+        private ActorModuleStore _moduleStore;
+        private LifecyclePhase _phase;
+        private bool _registryRegistered;
 
+        public string Name => name;
         public IReadOnlyActorReactProperty<bool> IsAlive => _isAlive;
         public IReadOnlyActorReactProperty<bool> IsInitialized => _isInitialized;
         public IReadOnlyActorReactProperty<ActorTag> Tag => _tag;
 
         public event Action Destroyed;
 
+        internal string LifecycleState => _phase.ToString();
+        internal int DataCount => _moduleStore?.DataCount ?? 0;
+        internal int BehaviourCount => _moduleStore?.BehaviourCount ?? 0;
+
+        private ActorModuleStore Modules => _moduleStore ??= new ActorModuleStore(this);
+
         private void Awake()
         {
+            _tag ??= new ActorReactProperty<ActorTag>();
+            _blueprints ??= new List<ActorBlueprint>();
+
             if (_initializeOnAwake)
                 Initialize();
         }
 
-        private void OnDestroy()
+        private void OnEnable()
         {
-            if (!_isDestroyed)
-                CleanUp();
+            if (_phase == LifecyclePhase.Initialized)
+                RefreshUpdateRegistration();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void OnDisable() => _updateRegistration.RemoveAll(this);
+
+        private void OnDestroy() => ShutDown();
+
         public void Initialize()
         {
-            if (_isInitialized.Value)
+            if (_phase == LifecyclePhase.Initialized)
                 return;
 
-            foreach (var blueprint in _blueprints)
-                AddBlueprint(blueprint);
+            if (_phase == LifecyclePhase.Disposed)
+                throw new ObjectDisposedException(nameof(Actor));
 
-            FetchModules();
+            if (_phase != LifecyclePhase.Uninitialized)
+                throw new InvalidOperationException($"Actor {name} is already being initialized.");
 
-            InitializeDataAndBehaviours(_dataMap.Values);
-            InitializeDataAndBehaviours(_behavioursMap.Values);
+            _phase = LifecyclePhase.Initializing;
 
-            RegisterForUpdates();
+            try
+            {
+                ActorModuleCollector.Collect(this, _blueprints, _componentBuffer, Modules);
+                Modules.InitializeAll();
 
-            ActorsContainer.Add(this);
+                if (_phase == LifecyclePhase.Disposed)
+                    return;
 
-            _isAlive.Value = true;
-            _isInitialized.Value = true;
-        }
+                _phase = LifecyclePhase.Initialized;
+                _isInitialized.Value = true;
 
-        private void RegisterForUpdates()
-        {
-            if (_hasUpdate)
-                ActorsUpdateManager.AddTickable(this);
+                if (_phase != LifecyclePhase.Initialized)
+                    return;
 
-            if (_hasFixedUpdate)
-                ActorsUpdateManager.AddFixedTickable(this);
+                _isAlive.Value = true;
 
-            if (_hasLateUpdate)
-                ActorsUpdateManager.AddLateTickable(this);
+                if (_phase != LifecyclePhase.Initialized)
+                    return;
+
+                RegisterInRegistry();
+
+                if (_phase == LifecyclePhase.Initialized)
+                    RefreshUpdateRegistration();
+            }
+            catch (Exception exception)
+            {
+                if (_phase == LifecyclePhase.Disposed)
+                {
+                    Debug.LogException(exception, this);
+                    return;
+                }
+
+                RollbackInitialization();
+                throw;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Tick(float deltaTime)
         {
-            for (int i = 0; i < _tickables.Count; i++)
-                _tickables[i].Tick(deltaTime);
+            if (!CanTick())
+                return;
+
+            Modules.Tick(deltaTime);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FixedTick(float fixedDeltaTime)
         {
-            for (int i = 0; i < _fixedTickables.Count; i++)
-                _fixedTickables[i].FixedTick(fixedDeltaTime);
+            if (!CanTick())
+                return;
+
+            Modules.FixedTick(fixedDeltaTime);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void LateTick(float deltaTime)
         {
-            for (int i = 0; i < _lateTickables.Count; i++)
-                _lateTickables[i].LateTick(deltaTime);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddBlueprint(ActorBlueprint blueprint)
-        {
-            if (blueprint == null) return;
-
-            foreach (var data in blueprint.Data)
-                AddData(data.GetData());
-
-            foreach (var behaviour in blueprint.Behaviour)
-                AddBehaviour(behaviour.GetBehaviour());
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool HasData<TData>() where TData : IActorData =>
-            _dataMap.ContainsKey(typeof(TData));
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddData<TData>(TData data) where TData : IActorData
-        {
-            var dataType = data.GetType();
-
-            if (HasData<TData>())
-            {
-                Debug.LogError($"Data of type {dataType.Name} is already added to Actor-{gameObject.name}");
+            if (!CanTick())
                 return;
-            }
 
-            _dataMap.Add(dataType, data);
+            Modules.LateTick(deltaTime);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TData GetData<TData>() where TData : class, IActorData
+        public void SetTag(ActorTag tag)
         {
-            if (_dataMap.TryGetValue(typeof(TData), out var data))
-                return data as TData;
+            EnsureMutable();
 
-            throw new InvalidOperationException($"Actor-{gameObject.name} does not have data of type {typeof(TData).Name}");
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetData<TData>(out TData data) where TData : class, IActorData
-        {
-            if (_dataMap.TryGetValue(typeof(TData), out var result))
+            try
             {
-                data = result as TData;
-                return true;
+                _tag.Value = tag;
             }
-
-            data = null;
-            return false;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveData<TData>() where TData : IActorData => _dataMap.Remove(typeof(TData));
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AddBehaviour<TBehaviour>(TBehaviour behaviour) where TBehaviour : IActorBehaviour
-        {
-            var behaviourType = behaviour.GetType();
-            _behavioursMap[typeof(TBehaviour)] = behaviour;
-            behaviour.Owner = this;
-
-            RegisterListeners(behaviour, behaviourType);
-
-            if (behaviour is ITickable tickable)
-                _tickables.Add(tickable);
-
-            if (behaviour is IFixedTickable fixedTickable)
-                _fixedTickables.Add(fixedTickable);
-
-            if (behaviour is ILateTickable lateTickable)
-                _lateTickables.Add(lateTickable);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void RegisterListeners(IActorBehaviour behaviour, Type behaviourType)
-        {
-            var interfaces = behaviourType.GetInterfaces();
-
-            foreach (var implementedInterface in interfaces)
+            finally
             {
-                if (implementedInterface.IsGenericType
-                    && implementedInterface.GetGenericTypeDefinition() == typeof(IActorCommandListener<>))
-                {
-                    var commandType = implementedInterface.GetGenericArguments()[0];
-
-                    if (!_listenersMap.TryGetValue(commandType, out var listeners))
-                    {
-                        listeners = new List<object>();
-                        _listenersMap[commandType] = listeners;
-                    }
-
-                    listeners.Add(behaviour);
-                }
+                ActorRegistry.RefreshTag(this);
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool HasBehaviour<TBehaviour>() where TBehaviour : IActorBehaviour =>
-            _behavioursMap.ContainsKey(typeof(TBehaviour));
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveBehaviour<TBehaviour>() where TBehaviour : IActorBehaviour
+        public void Kill()
         {
-            _behavioursMap.Remove(typeof(TBehaviour));
+            if (_phase != LifecyclePhase.Initialized)
+                return;
 
-            foreach (var listeners in _listenersMap.Values)
-                listeners.RemoveAll(listener => listener is TBehaviour);
-
-            _tickables.RemoveAll(t => t is TBehaviour);
-            _fixedTickables.RemoveAll(t => t is TBehaviour);
-            _lateTickables.RemoveAll(t => t is TBehaviour);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SendCommand<TCommand>(TCommand command = default) where TCommand : struct, IActorCommand
-        {
-            if (_listenersMap.TryGetValue(typeof(TCommand), out var listeners))
+            try
             {
-                foreach (var listener in listeners)
-                {
-                    if (listener is IActorCommandListener<TCommand> commandListener)
-                        commandListener.ReactActorCommand(command);
-                }
+                _isAlive.Value = false;
+            }
+            finally
+            {
+                RefreshUpdateRegistration();
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Kill() => _isAlive.Value = false;
+        public void Revive()
+        {
+            if (_phase != LifecyclePhase.Initialized)
+                return;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Revive() => _isAlive.Value = true;
+            try
+            {
+                _isAlive.Value = true;
+            }
+            finally
+            {
+                RefreshUpdateRegistration();
+            }
+        }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Destroy()
         {
-            CleanUp();
+            if (_phase == LifecyclePhase.Disposed)
+                return;
 
-            Destroyed?.Invoke();
+            ShutDown();
 
-            _isDestroyed = true;
-
-            Destroy(gameObject);
+            if (Application.isPlaying)
+                UnityEngine.Object.Destroy(gameObject);
+            else
+                UnityEngine.Object.DestroyImmediate(gameObject);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void FetchModules()
-        {
-            foreach (var module in GetComponentsInChildren<IActorModule>(true))
-            {
-                if (module is IActorData actorData)
-                    AddData(actorData);
+        private bool CanTick() =>
+            _phase == LifecyclePhase.Initialized && _isAlive.Value && isActiveAndEnabled;
 
-                if (module is IActorBehaviour actorBehaviour)
-                    AddBehaviour(actorBehaviour);
+        private void RegisterInRegistry()
+        {
+            _registryRegistered = true;
+
+            try
+            {
+                ActorRegistry.Add(this);
+            }
+            catch
+            {
+                _registryRegistered = false;
+                throw;
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void InitializeDataAndBehaviours<T>(IEnumerable<T> items) where T : IActorModule
+        private void RollbackInitialization()
         {
-            foreach (var item in items)
+            _updateRegistration.RemoveAll(this);
+
+            if (_registryRegistered)
             {
-                item.PreInitialize();
-                item.Initialize();
+                ActorRegistry.Remove(this);
+                _registryRegistered = false;
+            }
+
+            Modules.RollbackFrom(0);
+            _phase = LifecyclePhase.Uninitialized;
+            SetReactiveValueSafely(_isAlive, false);
+            SetReactiveValueSafely(_isInitialized, false);
+        }
+
+        private void RefreshUpdateRegistration()
+        {
+            var canRegister = _phase == LifecyclePhase.Initialized && _isAlive.Value && isActiveAndEnabled;
+            var modules = _moduleStore;
+            var tick = canRegister && _hasUpdate && modules?.HasTickables == true;
+            var fixedTick = canRegister && _hasFixedUpdate && modules?.HasFixedTickables == true;
+            var lateTick = canRegister && _hasLateUpdate && modules?.HasLateTickables == true;
+            _updateRegistration.Refresh(this, tick, fixedTick, lateTick);
+        }
+
+        private void ShutDown()
+        {
+            if (_phase == LifecyclePhase.Disposed || _phase == LifecyclePhase.CleaningUp)
+                return;
+
+            _phase = LifecyclePhase.CleaningUp;
+            SetReactiveValueSafely(_isAlive, false);
+            _updateRegistration.RemoveAll(this);
+
+            if (_registryRegistered)
+            {
+                ActorRegistry.Remove(this);
+                _registryRegistered = false;
+            }
+
+            _moduleStore?.CleanUpAll();
+            SetReactiveValueSafely(_isInitialized, false);
+            _phase = LifecyclePhase.Disposed;
+            InvokeDestroyed();
+        }
+
+        private void InvokeDestroyed()
+        {
+            var handlers = Destroyed?.GetInvocationList();
+            Destroyed = null;
+
+            if (handlers == null)
+                return;
+
+            for (var i = 0; i < handlers.Length; i++)
+            {
+                try
+                {
+                    ((Action)handlers[i]).Invoke();
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogException(exception, this);
+                }
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void CleanUp()
+        private void EnsureMutable()
         {
-            if (_hasUpdate)
-                ActorsUpdateManager.RemoveTickable(this);
+            if (_phase == LifecyclePhase.CleaningUp || _phase == LifecyclePhase.Disposed)
+                throw new ObjectDisposedException(nameof(Actor));
+        }
 
-            if (_hasFixedUpdate)
-                ActorsUpdateManager.RemoveFixedTickable(this);
-
-            if (_hasLateUpdate)
-                ActorsUpdateManager.RemoveLateTickable(this);
-
-            ActorsContainer.Remove(this);
-
-            foreach (var behaviour in _behavioursMap.Values)
-                behaviour.CleanUp();
-
-            foreach (var data in _dataMap.Values)
-                data.CleanUp();
+        private static void SetReactiveValueSafely(ActorReactProperty<bool> property, bool value)
+        {
+            try
+            {
+                property.Value = value;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
+            }
         }
     }
 }

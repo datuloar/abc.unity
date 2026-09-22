@@ -1,13 +1,15 @@
 using System;
+using System.Collections.Generic;
+
 using UnityEngine;
 
-namespace abc.unity.Common
+namespace Abc.Unity
 {
-    public interface IActorReactProperty<T>
+    public interface IActorReactProperty<T> : IReadOnlyActorReactProperty<T>
     {
-        T Value { get; set; }
+        new T Value { get; set; }
 
-        event Action<T> ValueChanged;
+        void SetValueWithoutNotify(T value);
     }
 
     public interface IReadOnlyActorReactProperty<T>
@@ -18,29 +20,33 @@ namespace abc.unity.Common
     }
 
     [Serializable]
-    public class ActorReactProperty<T> : IActorReactProperty<T>, IReadOnlyActorReactProperty<T> where T : struct
+    public class ActorReactProperty<T> : IActorReactProperty<T>
     {
+        private static readonly EqualityComparer<T> Comparer = EqualityComparer<T>.Default;
+
         [SerializeField] protected T _value;
 
-        public ActorReactProperty(T value) => Value = value;
+        public ActorReactProperty(T value) => _value = value;
 
-        public ActorReactProperty() => Value = default;
+        public ActorReactProperty() => _value = default;
 
         public virtual T Value
         {
             get => _value;
             set
             {
-                if (!_value.Equals(value))
-                {
-                    _value = value;
-                    OnValueChange();
-                }
+                if (Comparer.Equals(_value, value))
+                    return;
+
+                _value = value;
+                OnValueChange(value);
             }
         }
 
-        public event Action<T> ValueChanged = delegate { };
+        public event Action<T> ValueChanged;
 
-        protected virtual void OnValueChange() => ValueChanged.Invoke(Value);
+        public void SetValueWithoutNotify(T value) => _value = value;
+
+        protected virtual void OnValueChange(T value) => ValueChanged?.Invoke(value);
     }
 }

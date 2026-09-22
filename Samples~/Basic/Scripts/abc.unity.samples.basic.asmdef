@@ -1,0 +1,7 @@
+{
+    "name": "abc.unity.samples.basic",
+    "rootNamespace": "Abc.Unity.Samples.Basic",
+    "references": [
+        "abc.unity"
+    ]
+}
