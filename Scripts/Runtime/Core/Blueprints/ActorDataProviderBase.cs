@@ -1,7 +1,8 @@
-﻿using System;
+using System;
+
 using UnityEngine;
 
-namespace abc.unity.Core
+namespace Abc.Unity
 {
     public abstract class ActorDataProviderBase : ScriptableObject
     {

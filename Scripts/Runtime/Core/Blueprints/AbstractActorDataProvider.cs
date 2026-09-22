@@ -1,14 +1,32 @@
-﻿using System;
+using System;
+
 using UnityEngine;
 
-namespace abc.unity.Core
+namespace Abc.Unity
 {
-    public abstract class AbstractActorDataProvider<TComponent> : ActorDataProviderBase where TComponent : IActorData, ICloneable
+    public abstract class AbstractActorDataProvider<TData> : ActorDataProviderBase
+        where TData : class, IActorData, new()
     {
-        [SerializeField] private TComponent _value;
+        [SerializeField] private TData _value = new TData();
 
-        public override IActorData GetData() => _value.Clone() as IActorData;
+        public override IActorData GetData()
+        {
+            _value ??= new TData();
 
-        public override Type GetDataType() => typeof(TComponent);
+            if (_value is ICloneable cloneable)
+            {
+                var cloned = cloneable.Clone();
+                if (cloned is not TData typedClone || ReferenceEquals(typedClone, _value))
+                    throw new InvalidOperationException($"{typeof(TData).FullName}.Clone() must return a new {typeof(TData).FullName} instance.");
+
+                return typedClone;
+            }
+
+            var result = new TData();
+            JsonUtility.FromJsonOverwrite(JsonUtility.ToJson(_value), result);
+            return result;
+        }
+
+        public override Type GetDataType() => typeof(TData);
     }
 }

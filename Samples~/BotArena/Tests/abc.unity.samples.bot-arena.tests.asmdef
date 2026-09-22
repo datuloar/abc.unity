@@ -1,0 +1,16 @@
+{
+    "name": "abc.unity.samples.bot-arena.tests",
+    "rootNamespace": "Abc.Unity.Samples.BotArena.Tests",
+    "references": ["abc.unity", "abc.unity.samples.bot-arena"],
+    "includePlatforms": ["Editor"],
+    "defineConstraints": ["UNITY_INCLUDE_TESTS", "ABC_BOT_ARENA_TESTS"],
+    "versionDefines": [
+        {
+            "name": "com.unity.test-framework",
+            "expression": "1.0.0",
+            "define": "ABC_BOT_ARENA_TESTS"
+        }
+    ],
+    "optionalUnityReferences": ["TestAssemblies"],
+    "autoReferenced": false
+}

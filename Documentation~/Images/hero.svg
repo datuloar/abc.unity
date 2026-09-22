@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="480" viewBox="0 0 1200 480" role="img" aria-labelledby="title desc">
+  <title id="title">ABC Actor Behaviour Component framework</title>
+  <desc id="desc">Prototype-friendly Unity gameplay composition with indexed, allocation-free simulation paths.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#080d1c"/>
+      <stop offset=".55" stop-color="#111a35"/>
+      <stop offset="1" stop-color="#17143a"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#26a6ff"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#25345d" stop-opacity=".92"/>
+      <stop offset="1" stop-color="#1b2344" stop-opacity=".82"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#000" flood-opacity=".34"/>
+    </filter>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="28"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 10 5 0 10z" fill="#7182ad"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="480" rx="30" fill="url(#background)"/>
+  <circle cx="1035" cy="46" r="220" fill="#1688f0" opacity=".07"/>
+  <circle cx="460" cy="520" r="250" fill="#8b5cf6" opacity=".08"/>
+  <circle cx="882" cy="245" r="96" fill="#1688f0" opacity=".13" filter="url(#glow)"/>
+
+  <g transform="translate(64 54)">
+    <rect x="0" y="0" width="58" height="24" rx="12" fill="#162b4d" stroke="#295987"/>
+    <text x="29" y="16" text-anchor="middle" fill="#75caff" font-family="Inter,Segoe UI,sans-serif" font-size="10" font-weight="700" letter-spacing="1.2">UNITY</text>
+    <text x="0" y="104" fill="#fff" font-family="Inter,Segoe UI,sans-serif" font-size="86" font-weight="800" letter-spacing="-4">ABC</text>
+    <rect x="0" y="119" width="84" height="5" rx="2.5" fill="url(#accent)"/>
+    <text x="0" y="160" fill="#8ecfff" font-family="Inter,Segoe UI,sans-serif" font-size="13" font-weight="700" letter-spacing="2.2">ACTOR BEHAVIOUR COMPONENT</text>
+    <text x="0" y="211" fill="#f4f7ff" font-family="Inter,Segoe UI,sans-serif" font-size="29" font-weight="700">Prototype in minutes.</text>
+    <text x="0" y="247" fill="#f4f7ff" font-family="Inter,Segoe UI,sans-serif" font-size="29" font-weight="700">Scale without a rewrite.</text>
+    <text x="0" y="286" fill="#a7b3d1" font-family="Inter,Segoe UI,sans-serif" font-size="16">Plain C# composition with optional indexed simulation.</text>
+
+    <g transform="translate(0 322)" font-family="Inter,Segoe UI,sans-serif" font-size="11" font-weight="700">
+      <rect width="112" height="32" rx="16" fill="#142844" stroke="#23517d"/>
+      <text x="56" y="21" text-anchor="middle" fill="#75caff">NO MODULE KEYS</text>
+      <rect x="122" width="160" height="32" rx="16" fill="#242044" stroke="#493b7d"/>
+      <text x="202" y="21" text-anchor="middle" fill="#b9a7ff">NO REQUIRED CODEGEN</text>
+      <rect x="292" width="144" height="32" rx="16" fill="#13313e" stroke="#246276"/>
+      <text x="364" y="21" text-anchor="middle" fill="#62d3df">BUILT-IN EDITOR</text>
+    </g>
+  </g>
+
+  <g transform="translate(570 72)" filter="url(#shadow)" font-family="Inter,Segoe UI,sans-serif">
+    <rect x="0" y="0" width="566" height="334" rx="24" fill="#111a32" stroke="#32446f"/>
+    <text x="28" y="38" fill="#7f8eaf" font-size="11" font-weight="700" letter-spacing="1.4">ONE GAMEPLAY MODEL</text>
+    <text x="28" y="68" fill="#f4f7ff" font-size="20" font-weight="700">Choose only the execution layers you need</text>
+
+    <g transform="translate(28 103)">
+      <rect width="154" height="84" rx="16" fill="url(#glass)" stroke="#3e5688"/>
+      <rect width="5" height="84" rx="2.5" fill="#29a7ff"/>
+      <text x="21" y="31" fill="#76cbff" font-size="10" font-weight="700" letter-spacing="1">SCENE</text>
+      <text x="21" y="57" fill="#fff" font-size="20" font-weight="700">Actor</text>
+      <text x="21" y="75" fill="#a9b5d2" font-size="11">GameObject workflow</text>
+    </g>
+
+    <g transform="translate(28 205)">
+      <rect width="154" height="84" rx="16" fill="url(#glass)" stroke="#4a427e"/>
+      <rect width="5" height="84" rx="2.5" fill="#8b5cf6"/>
+      <text x="21" y="31" fill="#beaaff" font-size="10" font-weight="700" letter-spacing="1">SIMULATION</text>
+      <text x="21" y="57" fill="#fff" font-size="20" font-weight="700">ActorModel</text>
+      <text x="21" y="75" fill="#a9b5d2" font-size="11">Scene-free, same API</text>
+    </g>
+
+    <path d="M190 145 H236" stroke="#7182ad" stroke-width="2" marker-end="url(#arrow)"/>
+    <path d="M190 247 H211 Q226 247 226 232 V172 Q226 158 240 158" fill="none" stroke="#7182ad" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <g transform="translate(250 119)">
+      <rect width="124" height="124" rx="18" fill="#1c294b" stroke="#465d90"/>
+      <text x="62" y="42" text-anchor="middle" fill="#f5f7ff" font-size="15" font-weight="700">Composition</text>
+      <rect x="18" y="57" width="88" height="26" rx="9" fill="#23365d"/>
+      <text x="62" y="74" text-anchor="middle" fill="#91d5ff" font-size="10" font-weight="700">COMPACT SLOTS</text>
+      <rect x="18" y="89" width="88" height="20" rx="8" fill="#302953"/>
+      <text x="62" y="103" text-anchor="middle" fill="#c6b6ff" font-size="9" font-weight="700">LIFECYCLE</text>
+    </g>
+
+    <path d="M382 181 H416" stroke="#7182ad" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <g transform="translate(430 103)">
+      <rect width="108" height="156" rx="18" fill="#162d48" stroke="#28618a"/>
+      <text x="54" y="39" text-anchor="middle" fill="#fff" font-size="17" font-weight="700">ActorWorld</text>
+      <text x="54" y="62" text-anchor="middle" fill="#78cfff" font-size="10" font-weight="700">LAZY INDEXES</text>
+      <rect x="16" y="78" width="76" height="27" rx="9" fill="#1d4460"/>
+      <text x="54" y="96" text-anchor="middle" fill="#78d5e7" font-size="9" font-weight="700">0 GC HOT PATH</text>
+      <rect x="16" y="112" width="76" height="27" rx="9" fill="#282a59"/>
+      <text x="54" y="130" text-anchor="middle" fill="#b9abff" font-size="9" font-weight="700">1–3 TYPES</text>
+    </g>
+  </g>
+
+  <text x="1136" y="447" text-anchor="end" fill="#627093" font-family="Inter,Segoe UI,sans-serif" font-size="11" font-weight="600">FREE · MIT · UNITY 2021.3+</text>
+</svg>

@@ -1,0 +1,50 @@
+# Changelog
+
+## 2.0.0
+
+- Enforced reference-identity ownership for data and behaviour modules, including dual-role modules and rollback paths.
+- Fixed nested runtime composition initializing modules before the outer PreInitialize phase completed.
+- Made world cleanup detach all members before callbacks and clear previously returned registry views.
+- Protected Blueprint collections with cached read-only wrappers.
+- Fixed Bot Arena projectile tunneling and nearest-hit selection, preserved authored Blueprint defaults, and cached target data.
+- Restored sample camera/render settings on teardown, parented owned cameras and effects, and preserved player emission shader variants.
+- Isolated HUD color state so other IMGUI drawing cannot hide the sample's controls and labels.
+- Added ownership, reentrancy, encapsulation, and sample collision regression tests.
+- Reworked module registration to use concrete runtime types with cached interface resolution.
+- Fixed behaviour overwrites, shared blueprint behaviour instances, incomplete cleanup, repeated destruction, and nested actor module capture.
+- Added safe runtime module mutation during update and command dispatch.
+- Removed per-frame allocations from actor update and command hot paths.
+- Added dynamic lifecycle handling, behaviour lookup APIs, runtime tag changes, and allocation-free tag views.
+- Split editor tooling and samples into dedicated assemblies and package locations.
+- Added Unity EditMode regression and allocation tests.
+- Raised the minimum supported Unity version to 2021.3.
+- Added scene-free `ActorModel` and mutation-safe `ActorWorld` execution.
+- Added fluent actor composition without key declarations or code generation.
+- Replaced exact module type hashing with generic integer IDs, compact per-actor slots, and an adaptive wide-composition lookup.
+- Made model state and registries lazy to reduce retained memory at scale.
+- Added production Actor and Blueprint inspectors plus the ABC Dashboard.
+- Added Unity ProfilerRecorder performance regressions and retained-memory coverage.
+- Added lazy exact-type ActorWorld query indexes for one, two, and three data types.
+- Added prototype-friendly delegate queries and zero-boxing struct query actions.
+- Added query tag/alive filters and mutation-safe composition changes during iteration.
+- Added live ActorWorld diagnostics to the built-in ABC Dashboard with no player overhead.
+- Added ActorWorldRunner for optional automatic Unity Update, FixedUpdate, and LateUpdate hosting.
+- Added a 1,000-model indexed query example to the Basic sample.
+- Added architecture, query, editor workflow, and performance documentation with visual diagrams.
+- Replaced sparse global module and world-index tables with compact adaptive storage.
+- Replaced per-actor command type dictionaries with compact generic-ID listener registries.
+- Made tick phase collections lazy and reduced small-composition array capacity.
+- Fixed a world ownership edge case when a model destroys itself during initialization.
+- Added a polished README hero, expanded mutation regressions, and cross-version memory benchmarks.
+- Unified the public C# API under the PascalCase `Abc.Unity` namespace.
+- Reduced the exposed implementation surface and sealed concrete composition roots.
+- Hid singleton host access and reset hooks behind the registry implementation.
+- Added an AI-ready Feature Scaffold that emits editable data, behaviour, command, query, and Blueprint provider source.
+- Removed manual `ICloneable` boilerplate from normal serializable Blueprint data.
+- Replaced the closed tag enum with a compact serializable custom-tag value and built-in inspector drawer.
+- Added repository-level agent guidance, enforceable code style, and a one-command static validation gate.
+- Added source-linked market comparison and AI development documentation.
+- Stabilized timing baselines with five-sample median measurements.
+- Replaced generic public tick and view contracts with conflict-resistant `IActorTick`, `IActorFixedTick`, `IActorLateTick`, and `IActorView` contracts.
+- Internalized Unity service hosts and replaced mutable `ActorsContainer` access with the read-only public `ActorRegistry` facade.
+- Added the playable Bot Arena sample with reusable Blueprint data, local typed commands, bot combat, runtime HUD, and indexed struct-query simulation.

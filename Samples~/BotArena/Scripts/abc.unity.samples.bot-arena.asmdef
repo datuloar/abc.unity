@@ -1,0 +1,7 @@
+{
+    "name": "abc.unity.samples.bot-arena",
+    "rootNamespace": "Abc.Unity.Samples.BotArena",
+    "references": [
+        "abc.unity"
+    ]
+}

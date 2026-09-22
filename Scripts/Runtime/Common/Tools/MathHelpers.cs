@@ -1,21 +1,22 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 
-namespace abc.unity.Common
+namespace Abc.Unity
 {
-    public static class MathHelpers
+    internal static class MathHelpers
     {
-        /// <summary>
-        /// Computes the smallest power of two greater than or equal to a value.
-        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int NextPowerOf2(int value)
         {
+            if (value < 0)
+                throw new System.ArgumentOutOfRangeException(nameof(value));
+
+            if (value > 1 << 30)
+                throw new System.OverflowException();
+
             uint v = (uint)value;
 
             if (v == 0)
-            {
                 return 0;
-            }
 
             v--;
             v |= v >> 1;
@@ -28,47 +29,39 @@ namespace abc.unity.Common
             return (int)v;
         }
 
-        /// <summary>
-        /// Checks whether a value is a power of two or not.
-        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsPowerOfTwo(int value)
-        {
-            return value > 0 && unchecked(value & (value - 1)) == 0;
-        }
+        public static bool IsPowerOfTwo(int value) => value > 0 && unchecked(value & (value - 1)) == 0;
 
-        /// <summary>
-        /// Fast log2 for powers of two only.
-        /// </summary>
-        /// <param name="value"> Non-negative power of two value. </param>
-        /// <remarks>
-        /// Returns -1 when value is 0.
-        /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int FastLog2(int value)
         {
+            if (value < 0)
+                throw new System.ArgumentOutOfRangeException(nameof(value));
+
             return sizeof(int) * 8 - LeadingZeroesCount(value) - 1;
         }
 
-        /// <summary>
-        /// Fast module for powers of two only.
-        /// </summary>
-        /// <param name="value"> Non-negative value. </param>
-        /// <param name="mod"> Power of two value. </param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int FastMod(int value, int mod)
         {
+            if (value < 0)
+                throw new System.ArgumentOutOfRangeException(nameof(value));
+
+            if (!IsPowerOfTwo(mod))
+                throw new System.ArgumentOutOfRangeException(nameof(mod));
+
             return unchecked(value & (mod - 1));
         }
 
-        /// <summary>
-        /// Fast division for powers of two only.
-        /// </summary>
-        /// <param name="value"> Non-negative value. </param>
-        /// <param name="powerOfTwo"> Power of divider. </param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int FastPowDiv(int value, int powerOfTwo)
         {
+            if (value < 0)
+                throw new System.ArgumentOutOfRangeException(nameof(value));
+
+            if ((uint)powerOfTwo > 30u)
+                throw new System.ArgumentOutOfRangeException(nameof(powerOfTwo));
+
             return value >> powerOfTwo;
         }
 
