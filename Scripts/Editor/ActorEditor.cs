@@ -1,10 +1,9 @@
 using System.Collections.Generic;
 
 using UnityEditor;
-using UnityEditorInternal;
+using UnityEditor.UIElements;
 using UnityEngine;
-
-using Abc.Unity;
+using UnityEngine.UIElements;
 
 namespace Abc.Unity.Editor
 {
@@ -13,161 +12,111 @@ namespace Abc.Unity.Editor
     internal sealed class ActorEditor : UnityEditor.Editor
     {
         private readonly HashSet<Object> _seenBlueprints = new HashSet<Object>();
-        private SerializedProperty _tag;
-        private SerializedProperty _blueprints;
-        private SerializedProperty _initializeOnAwake;
-        private SerializedProperty _hasUpdate;
-        private SerializedProperty _hasFixedUpdate;
-        private SerializedProperty _hasLateUpdate;
-        private ReorderableList _blueprintList;
 
-        private void OnEnable()
+        public override VisualElement CreateInspectorGUI()
         {
-            _tag = serializedObject.FindProperty("_tag").FindPropertyRelative("_value");
-            _blueprints = serializedObject.FindProperty("_blueprints");
-            _initializeOnAwake = serializedObject.FindProperty("_initializeOnAwake");
-            _hasUpdate = serializedObject.FindProperty("_hasUpdate");
-            _hasFixedUpdate = serializedObject.FindProperty("_hasFixedUpdate");
-            _hasLateUpdate = serializedObject.FindProperty("_hasLateUpdate");
-            _blueprintList = new ReorderableList(serializedObject, _blueprints, true, true, true, true)
+            var root = ActorEditorStyles.Root();
+            root.Add(ActorEditorStyles.Header("Actor", targets.Length > 1
+                ? $"{targets.Length} actors selected" : "Scene-backed gameplay. Compose, then play."));
+            var authoring = new VisualElement();
+            var identity = ActorEditorStyles.Card("Identity");
+            identity.Add(ActorEditorStyles.Property(serializedObject, "_tag._value", "Tag"));
+            authoring.Add(identity);
+            var composition = ActorEditorStyles.Card("Blueprints", "Reusable composition, applied in list order.");
+            composition.Add(ActorEditorStyles.Property(serializedObject, "_blueprints", "Blueprints"));
+            authoring.Add(composition);
+            var phases = ActorEditorStyles.Card("Lifecycle & scheduling");
+            phases.Add(ActorEditorStyles.Property(serializedObject, "_initializeOnAwake", "Initialize on Awake"));
+            phases.Add(ActorEditorStyles.Property(serializedObject, "_hasUpdate", "Update"));
+            phases.Add(ActorEditorStyles.Property(serializedObject, "_hasFixedUpdate", "Fixed Update"));
+            phases.Add(ActorEditorStyles.Property(serializedObject, "_hasLateUpdate", "Late Update"));
+            authoring.Add(phases);
+            root.Add(authoring);
+            var validation = new HelpBox("", HelpBoxMessageType.Error);
+            root.Add(validation);
+            var explicitInitialization = new HelpBox("Call Initialize() explicitly for actors without Initialize on Awake.", HelpBoxMessageType.Info);
+            root.Add(explicitInitialization);
+            void Refresh()
             {
-                drawHeaderCallback = DrawBlueprintHeader,
-                drawElementCallback = DrawBlueprintElement,
-                elementHeight = EditorGUIUtility.singleLineHeight + 6f
-            };
-        }
-
-        public override void OnInspectorGUI()
-        {
-            serializedObject.Update();
-            ActorEditorStyles.DrawHeader("ABC Actor", GetHeaderSubtitle(), "d_GameObject Icon");
-
-            using (new EditorGUI.DisabledScope(EditorApplication.isPlaying))
-            {
-                DrawIdentity();
-                DrawBlueprints();
-                DrawExecution();
+                if (target == null)
+                    return;
+                authoring.SetEnabled(!EditorApplication.isPlaying);
+                serializedObject.UpdateIfRequiredOrScript();
+                var error = ValidateBlueprints();
+                validation.text = error;
+                validation.style.display = error.Length > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+                var awake = serializedObject.FindProperty("_initializeOnAwake");
+                explicitInitialization.style.display = !EditorApplication.isPlaying &&
+                    (!awake.boolValue || awake.hasMultipleDifferentValues) ? DisplayStyle.Flex : DisplayStyle.None;
             }
-
-            serializedObject.ApplyModifiedProperties();
-            DrawValidation();
-
+            root.TrackSerializedObjectValue(serializedObject, _ => Refresh());
+            root.schedule.Execute(Refresh).Every(500);
+            Refresh();
             if (!serializedObject.isEditingMultipleObjects)
-                DrawRuntime((Actor)target);
+                AddRuntime(root, (Actor)target);
+            return root;
         }
 
-        private void DrawIdentity()
-        {
-            ActorEditorStyles.BeginCard();
-            GUILayout.Label("Identity", ActorEditorStyles.Section);
-            EditorGUILayout.PropertyField(_tag, new GUIContent("Tag"));
-            ActorEditorStyles.EndCard();
-        }
-
-        private void DrawBlueprints()
-        {
-            ActorEditorStyles.BeginCard();
-            _blueprintList.DoLayoutList();
-            ActorEditorStyles.EndCard();
-        }
-
-        private void DrawExecution()
-        {
-            ActorEditorStyles.BeginCard();
-            GUILayout.Label("Lifecycle & Update", ActorEditorStyles.Section);
-            EditorGUILayout.PropertyField(_initializeOnAwake, new GUIContent("Initialize On Awake"));
-            GUILayout.Space(2f);
-            EditorGUILayout.LabelField("Scheduled Phases", EditorStyles.miniBoldLabel);
-            EditorGUILayout.BeginHorizontal();
-            _hasUpdate.boolValue = GUILayout.Toggle(_hasUpdate.boolValue, "Update", EditorStyles.miniButtonLeft);
-            _hasFixedUpdate.boolValue = GUILayout.Toggle(_hasFixedUpdate.boolValue, "Fixed", EditorStyles.miniButtonMid);
-            _hasLateUpdate.boolValue = GUILayout.Toggle(_hasLateUpdate.boolValue, "Late", EditorStyles.miniButtonRight);
-            EditorGUILayout.EndHorizontal();
-            ActorEditorStyles.EndCard();
-        }
-
-        private void DrawValidation()
+        private string ValidateBlueprints()
         {
             var missing = 0;
             var duplicates = 0;
-            _seenBlueprints.Clear();
-
-            for (var i = 0; i < _blueprints.arraySize; i++)
+            foreach (var actor in targets)
             {
-                var blueprint = _blueprints.GetArrayElementAtIndex(i).objectReferenceValue;
-                if (blueprint == null)
-                    missing++;
-                else if (!_seenBlueprints.Add(blueprint))
-                    duplicates++;
+                using var serialized = new SerializedObject(actor);
+                var blueprints = serialized.FindProperty("_blueprints");
+                _seenBlueprints.Clear();
+                for (var i = 0; i < blueprints.arraySize; i++)
+                {
+                    var blueprint = blueprints.GetArrayElementAtIndex(i).objectReferenceValue;
+                    if (blueprint == null)
+                        missing++;
+                    else if (!_seenBlueprints.Add(blueprint))
+                        duplicates++;
+                }
             }
-
-            if (missing > 0)
-                EditorGUILayout.HelpBox($"Remove {missing} missing blueprint reference(s).", MessageType.Error);
-
-            if (duplicates > 0)
-                EditorGUILayout.HelpBox($"Remove {duplicates} duplicate blueprint reference(s).", MessageType.Error);
-
-            if (!_initializeOnAwake.boolValue && !EditorApplication.isPlaying)
-                EditorGUILayout.HelpBox("This actor requires an explicit Initialize() call.", MessageType.Info);
+            return missing + duplicates == 0 ? string.Empty :
+                $"Blueprint references: {missing} missing, {duplicates} duplicates. Remove or replace them before Play Mode.";
         }
 
-        private void DrawRuntime(Actor actor)
+        private static void AddRuntime(VisualElement root, Actor actor)
         {
-            ActorEditorStyles.BeginCard();
-            GUILayout.Label(EditorApplication.isPlaying ? "Runtime" : "Runtime Preview", ActorEditorStyles.Section);
-            EditorGUILayout.BeginHorizontal();
-            ActorEditorStyles.DrawMetric(actor.LifecycleState, "State");
-            ActorEditorStyles.DrawMetric(actor.DataCount.ToString(), "Data");
-            ActorEditorStyles.DrawMetric(actor.BehaviourCount.ToString(), "Behaviours");
-            EditorGUILayout.EndHorizontal();
-
-            if (!EditorApplication.isPlaying)
+            var runtime = ActorEditorStyles.Card("Runtime", "Read-only diagnostics. Runtime actions do not change scene authoring.");
+            var metrics = ActorEditorStyles.Row("abc-metrics");
+            var state = ActorEditorStyles.Metric(metrics, "Lifecycle");
+            var data = ActorEditorStyles.Metric(metrics, "Data");
+            var behaviours = ActorEditorStyles.Metric(metrics, "Behaviours");
+            runtime.Add(metrics);
+            var actions = ActorEditorStyles.Row();
+            var action = ActorEditorStyles.Button("Initialize", () => ChangeLifecycle(actor));
+            actions.Add(action);
+            actions.Add(ActorEditorStyles.Button("Inspect composition", () => ActorWorldExplorerWindow.OpenActor(actor), true));
+            runtime.Add(actions);
+            root.Add(runtime);
+            void Refresh()
             {
-                EditorGUILayout.HelpBox("Enter Play Mode to inspect live lifecycle state and modules.", MessageType.None);
-                ActorEditorStyles.EndCard();
+                if (actor == null)
+                    return;
+                state.text = actor.LifecycleState;
+                data.text = actor.DataCount.ToString();
+                behaviours.text = actor.BehaviourCount.ToString();
+                action.text = !actor.IsInitialized.Value ? "Initialize" : actor.IsAlive.Value ? "Kill" : "Revive";
+                action.SetEnabled(EditorApplication.isPlaying && actor.LifecycleState != "Disposed");
+            }
+            runtime.schedule.Execute(Refresh).Every(500);
+            Refresh();
+        }
+
+        private static void ChangeLifecycle(Actor actor)
+        {
+            if (actor == null || !EditorApplication.isPlaying || actor.LifecycleState == "Disposed")
                 return;
-            }
-
-            EditorGUILayout.BeginHorizontal();
-
             if (!actor.IsInitialized.Value)
-            {
-                if (GUILayout.Button("Initialize", ActorEditorStyles.CenteredButton))
-                    actor.Initialize();
-            }
+                actor.Initialize();
             else if (actor.IsAlive.Value)
-            {
-                if (GUILayout.Button("Kill", ActorEditorStyles.CenteredButton))
-                    actor.Kill();
-            }
-            else if (GUILayout.Button("Revive", ActorEditorStyles.CenteredButton))
-            {
+                actor.Kill();
+            else
                 actor.Revive();
-            }
-
-            EditorGUILayout.EndHorizontal();
-            ActorEditorStyles.EndCard();
-        }
-
-        private void DrawBlueprintHeader(Rect rect)
-        {
-            EditorGUI.LabelField(rect, $"Blueprints  {_blueprints.arraySize}", EditorStyles.boldLabel);
-        }
-
-        private void DrawBlueprintElement(Rect rect, int index, bool isActive, bool isFocused)
-        {
-            rect.y += 3f;
-            rect.height = EditorGUIUtility.singleLineHeight;
-            EditorGUI.PropertyField(rect, _blueprints.GetArrayElementAtIndex(index), GUIContent.none);
-        }
-
-        private string GetHeaderSubtitle()
-        {
-            if (serializedObject.isEditingMultipleObjects)
-                return $"{targets.Length} actors selected";
-
-            var actor = (Actor)target;
-            return EditorApplication.isPlaying ? actor.LifecycleState : "Composable gameplay entity";
         }
     }
 }

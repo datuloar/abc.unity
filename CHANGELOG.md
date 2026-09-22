@@ -2,6 +2,17 @@
 
 ## 2.0.0
 
+- Rebuilt all ABC editor windows, inspectors, and the tag drawer on native UI Toolkit with shared light/dark styling, a searchable provider picker, serialized Undo support, and full scaffold source previews.
+- Added World Explorer with scoped search, virtualized model and scene browsing, read-only runtime state, source navigation, and diagnostic snapshots.
+- Added project-specific scaffold defaults, selected-folder output, and GUID-based tracking of moved folders.
+- Replaced Bot Arena string-based resource loading with explicit serialized Blueprint and material references.
+
+- Avoided empty-model storage allocation on missing lookups and removed no-op per-frame ticks from scaffolded behaviours.
+- Improved Feature Scaffold folder selection and narrow-window usability.
+- Added a headless Feature Scaffold sharing safe transactional output with the editor window.
+- Preserved external and multiply referenced Blueprint providers when removing inspector rows.
+- Removed obsolete migration documentation, legacy branding and sample version labels.
+- Added deterministic UPM packaging, SHA-256 receipts and local documentation-link validation.
 - Enforced reference-identity ownership for data and behaviour modules, including dual-role modules and rollback paths.
 - Fixed nested runtime composition initializing modules before the outer PreInitialize phase completed.
 - Made world cleanup detach all members before callbacks and clear previously returned registry views.
@@ -17,7 +28,7 @@
 - Added dynamic lifecycle handling, behaviour lookup APIs, runtime tag changes, and allocation-free tag views.
 - Split editor tooling and samples into dedicated assemblies and package locations.
 - Added Unity EditMode regression and allocation tests.
-- Raised the minimum supported Unity version to 2021.3.
+- Set the minimum Unity version to 2022.3 and scoped release validation to Unity 2022.3/Unity 6 on Windows with Windows x64 Mono players.
 - Added scene-free `ActorModel` and mutation-safe `ActorWorld` execution.
 - Added fluent actor composition without key declarations or code generation.
 - Replaced exact module type hashing with generic integer IDs, compact per-actor slots, and an adaptive wide-composition lookup.

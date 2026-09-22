@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 using UnityEngine;
@@ -146,7 +147,10 @@ namespace Abc.Unity
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TData GetData<TData>() where TData : class, IActorData => Modules.GetData<TData>();
+        public TData GetData<TData>() where TData : class, IActorData =>
+            _modules != null
+                ? _modules.GetData<TData>()
+                : throw new InvalidOperationException($"Actor {Name} does not contain data assignable to {typeof(TData).FullName}.");
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetData<TData>(out TData data) where TData : class, IActorData
@@ -182,7 +186,10 @@ namespace Abc.Unity
         public bool HasBehaviour<TBehaviour>() where TBehaviour : class, IActorBehaviour => _modules?.HasBehaviour<TBehaviour>() == true;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TBehaviour GetBehaviour<TBehaviour>() where TBehaviour : class, IActorBehaviour => Modules.GetBehaviour<TBehaviour>();
+        public TBehaviour GetBehaviour<TBehaviour>() where TBehaviour : class, IActorBehaviour =>
+            _modules != null
+                ? _modules.GetBehaviour<TBehaviour>()
+                : throw new InvalidOperationException($"Actor {Name} does not contain behaviour assignable to {typeof(TBehaviour).FullName}.");
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetBehaviour<TBehaviour>(out TBehaviour behaviour) where TBehaviour : class, IActorBehaviour
@@ -261,6 +268,18 @@ namespace Abc.Unity
 
         internal bool IsAliveValue => _isAliveValue;
         internal ActorTag TagValue => _tagValue;
+
+#if UNITY_EDITOR
+        internal string LifecycleState => _phase.ToString();
+        internal int DataCount => _modules?.DataCount ?? 0;
+        internal int BehaviourCount => _modules?.BehaviourCount ?? 0;
+
+        internal void CopyModulesTo(List<IActorModule> destination)
+        {
+            destination.Clear();
+            _modules?.CopyModulesTo(destination);
+        }
+#endif
 
         private void EnsureMutable()
         {

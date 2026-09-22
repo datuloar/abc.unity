@@ -1,197 +1,206 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Abc.Unity.Editor
 {
     internal sealed class ActorFeatureWizard : EditorWindow
     {
-        private const string DefaultFolder = "Assets/Game/Features";
-        private const string DefaultNamespace = "Game.Features";
-
-        private static readonly HashSet<string> Keywords = new HashSet<string>
-        {
-            "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char", "checked",
-            "class", "const", "continue", "decimal", "default", "delegate", "do", "double", "else",
-            "enum", "event", "explicit", "extern", "false", "finally", "fixed", "float", "for",
-            "foreach", "goto", "if", "implicit", "in", "int", "interface", "internal", "is", "lock",
-            "long", "namespace", "new", "null", "object", "operator", "out", "override", "params",
-            "private", "protected", "public", "readonly", "ref", "return", "sbyte", "sealed", "short",
-            "sizeof", "stackalloc", "static", "string", "struct", "switch", "this", "throw", "true",
-            "try", "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using", "virtual",
-            "void", "volatile", "while"
-        };
-
-        private string _featureName = "Movement";
-        private string _namespaceName = DefaultNamespace;
-        private string _folder = DefaultFolder;
-        private bool _createData = true;
-        private bool _createBehaviour = true;
-        private bool _createCommand;
-        private bool _createQueryAction;
-        private bool _createProviders = true;
-        private Vector2 _scroll;
+        [SerializeField] private string _featureName = "Movement";
+        [SerializeField] private string _namespaceName;
+        [SerializeField] private string _folder;
+        [SerializeField] private bool _createData = true;
+        [SerializeField] private bool _createBehaviour = true;
+        [SerializeField] private bool _createCommand;
+        [SerializeField] private bool _createQueryAction;
+        [SerializeField] private bool _createProviders = true;
+        private TextField _folderField;
+        private TextField _source;
+        private PopupField<string> _filePicker;
+        private Toggle _queryOption;
+        private Toggle _providersOption;
+        private HelpBox _validation;
+        private Button _generate;
+        private Button _saveDefaults;
+        private Button _selectedFolder;
+        private List<ActorFeatureFile> _files;
 
         [MenuItem("Tools/ABC/Feature Scaffold", priority = 1201)]
         internal static void Open()
         {
             var window = GetWindow<ActorFeatureWizard>();
-            window.titleContent = new GUIContent("ABC Feature", EditorGUIUtility.IconContent("d_cs Script Icon").image);
-            window.minSize = new Vector2(460f, 520f);
+            window.titleContent = new GUIContent("Feature Scaffold");
+            window.minSize = new Vector2(380f, 500f);
             window.Show();
         }
 
-        private void OnGUI()
+        private void OnEnable()
         {
-            _scroll = EditorGUILayout.BeginScrollView(_scroll);
-            ActorEditorStyles.DrawHeader("Feature Scaffold", "Readable source with zero generator runtime cost", "d_cs Script Icon");
-            DrawIdentity();
-            DrawModules();
-            DrawPreviewAndGenerate();
-            EditorGUILayout.EndScrollView();
+            var settings = ActorProjectSettings.instance;
+            if (string.IsNullOrEmpty(_folder))
+                _folder = settings.FeatureFolder;
+            if (string.IsNullOrEmpty(_namespaceName))
+                _namespaceName = settings.FeatureNamespace;
         }
 
-        private void DrawIdentity()
+        public void CreateGUI()
         {
-            ActorEditorStyles.BeginCard();
-            GUILayout.Label("Identity", ActorEditorStyles.Section);
-            _featureName = EditorGUILayout.TextField("Feature Name", _featureName).Trim();
-            _namespaceName = EditorGUILayout.TextField("Namespace", _namespaceName).Trim();
-
-            EditorGUILayout.BeginHorizontal();
-            _folder = EditorGUILayout.TextField("Output Folder", _folder).Trim();
-            if (GUILayout.Button("Browse", GUILayout.Width(70f)))
-                BrowseFolder();
-            EditorGUILayout.EndHorizontal();
-            ActorEditorStyles.EndCard();
+            var root = ActorEditorStyles.Root(rootVisualElement);
+            root.Add(ActorEditorStyles.Header("Feature Scaffold", "Your feature. Readable source. Zero runtime generator cost."));
+            var scroll = ActorEditorStyles.Scroll(root);
+            BuildIdentity(scroll);
+            BuildOptions(scroll);
+            BuildPreview(scroll);
+            root.schedule.Execute(() => _selectedFolder.SetEnabled(GetSelectedFolder() != null)).Every(500);
+            RefreshPreview();
         }
 
-        private void DrawModules()
+        private void BuildIdentity(VisualElement root)
         {
-            ActorEditorStyles.BeginCard();
-            GUILayout.Label("Generate", ActorEditorStyles.Section);
-            _createData = EditorGUILayout.ToggleLeft("Data", _createData);
-            _createBehaviour = EditorGUILayout.ToggleLeft("Behaviour with cached dependencies", _createBehaviour);
-            _createCommand = EditorGUILayout.ToggleLeft("Command and behaviour listener", _createCommand);
-
-            using (new EditorGUI.DisabledScope(!_createData))
-                _createQueryAction = EditorGUILayout.ToggleLeft("Zero-boxing query action", _createQueryAction && _createData);
-
-            using (new EditorGUI.DisabledScope(!_createData && !_createBehaviour))
-                _createProviders = EditorGUILayout.ToggleLeft("Blueprint providers", _createProviders && (_createData || _createBehaviour));
-
-            EditorGUILayout.HelpBox(
-                "Files are deterministic, editable C# source. The scaffold adds no runtime service, generated DLL, analyzer, or player dependency.",
-                MessageType.None);
-            ActorEditorStyles.EndCard();
-        }
-
-        private void DrawPreviewAndGenerate()
-        {
-            var files = BuildFiles();
-            var error = Validate(files);
-
-            ActorEditorStyles.BeginCard();
-            GUILayout.Label($"Preview  {files.Count} file(s)", ActorEditorStyles.Section);
-
-            if (files.Count == 0)
-                EditorGUILayout.HelpBox("Select at least one feature module.", MessageType.Info);
-            else
-                DrawFileList(files);
-
-            if (!string.IsNullOrEmpty(error))
-                EditorGUILayout.HelpBox(error, MessageType.Error);
-
-            using (new EditorGUI.DisabledScope(!string.IsNullOrEmpty(error)))
+            var identity = ActorEditorStyles.Card("01  /  Identity & location");
+            if (!ActorProjectSettings.instance.IsConfigured)
+                identity.Add(new HelpBox("Choose your own folder and namespace. Save project defaults to reuse them for every feature.", HelpBoxMessageType.Info));
+            var name = new TextField("Feature name") { value = _featureName };
+            name.RegisterValueChangedCallback(evt => { _featureName = evt.newValue.Trim(); RefreshPreview(); });
+            var namespaceName = new TextField("Namespace") { value = _namespaceName };
+            namespaceName.RegisterValueChangedCallback(evt => { _namespaceName = evt.newValue.Trim(); RefreshPreview(); });
+            _folderField = new TextField("Output folder") { value = _folder };
+            _folderField.RegisterValueChangedCallback(evt => { _folder = evt.newValue.Trim(); RefreshPreview(); });
+            identity.Add(name);
+            identity.Add(namespaceName);
+            identity.Add(_folderField);
+            var actions = ActorEditorStyles.Row();
+            actions.Add(ActorEditorStyles.Button("Browse", BrowseFolder));
+            _selectedFolder = ActorEditorStyles.Button("Use selected folder", () =>
             {
-                if (GUILayout.Button("Generate Feature", ActorEditorStyles.CenteredButton))
-                    Generate(files);
-            }
-
-            ActorEditorStyles.EndCard();
+                var folder = GetSelectedFolder();
+                if (folder != null)
+                    _folderField.value = folder;
+            });
+            actions.Add(_selectedFolder);
+            _saveDefaults = ActorEditorStyles.Button("Save project defaults", () =>
+            {
+                ActorProjectSettings.instance.SaveDefaults(_folder, _namespaceName);
+                ShowNotification(new GUIContent("Project defaults saved"));
+            });
+            actions.Add(_saveDefaults);
+            identity.Add(actions);
+            root.Add(identity);
         }
 
-        private static void DrawFileList(IReadOnlyList<ActorFeatureFile> files)
+        private void BuildOptions(VisualElement root)
         {
-            for (var i = 0; i < files.Count; i++)
-            {
-                EditorGUILayout.BeginHorizontal();
-                GUILayout.Label(EditorGUIUtility.IconContent("cs Script Icon"), GUILayout.Width(22f));
-                GUILayout.Label(files[i].Name, EditorStyles.label);
-                EditorGUILayout.EndHorizontal();
-            }
+            var options = ActorEditorStyles.Card("02  /  Composition", "Generate only what this feature needs.");
+            AddOption(options, "Data", _createData, value => _createData = value);
+            AddOption(options, "Behaviour with cached dependencies", _createBehaviour, value => _createBehaviour = value);
+            AddOption(options, "Command and typed listener", _createCommand, value => _createCommand = value);
+            _queryOption = AddOption(options, "Zero-boxing query action", _createQueryAction, value => _createQueryAction = value);
+            _providersOption = AddOption(options, "Blueprint providers", _createProviders, value => _createProviders = value);
+            root.Add(options);
         }
 
-        private List<ActorFeatureFile> BuildFiles() => ActorFeatureTemplates.Build(
-            _featureName,
-            _namespaceName,
-            _createData,
-            _createBehaviour,
-            _createCommand,
-            _createQueryAction,
-            _createProviders);
-
-        private string Validate(IReadOnlyList<ActorFeatureFile> files)
+        private Toggle AddOption(VisualElement parent, string label, bool value, Action<bool> set)
         {
-            if (files.Count == 0)
-                return "Select at least one feature module.";
-            if (!IsIdentifier(_featureName))
-                return "Feature Name must be a valid C# identifier.";
-            if (!IsNamespace(_namespaceName))
-                return "Namespace must contain valid dot-separated C# identifiers.";
-
-            var folder = NormalizeFolder(_folder);
-            if (folder != "Assets" && !folder.StartsWith("Assets/", StringComparison.Ordinal))
-                return "Output Folder must be inside Assets.";
-            if (folder.Contains(".."))
-                return "Output Folder cannot contain parent traversal.";
-
-            for (var i = 0; i < files.Count; i++)
-            {
-                var assetPath = $"{folder}/{files[i].Name}";
-                if (File.Exists(ToAbsolutePath(assetPath)))
-                    return $"{assetPath} already exists. Existing source is never overwritten.";
-            }
-
-            return null;
+            var toggle = new Toggle { text = label, value = value };
+            toggle.RegisterValueChangedCallback(evt => { set(evt.newValue); RefreshPreview(); });
+            parent.Add(toggle);
+            return toggle;
         }
 
-        private void Generate(IReadOnlyList<ActorFeatureFile> files)
+        private void BuildPreview(VisualElement root)
         {
-            var error = Validate(files);
-            if (!string.IsNullOrEmpty(error))
+            var preview = ActorEditorStyles.Card("03  /  Review & generate", "Existing files are never overwritten. Generated code is yours to edit.");
+            _filePicker = new PopupField<string>("Preview file", new List<string> { "No files" }, 0);
+            _filePicker.RegisterValueChangedCallback(evt => UpdateSource());
+            preview.Add(_filePicker);
+            _source = new TextField { multiline = true, isReadOnly = true };
+            _source.AddToClassList("abc-code");
+            preview.Add(_source);
+            _validation = new HelpBox("", HelpBoxMessageType.Warning);
+            preview.Add(_validation);
+            _generate = ActorEditorStyles.Button("Generate feature", Generate, true);
+            preview.Add(_generate);
+            root.Add(preview);
+        }
+
+        private void RefreshPreview()
+        {
+            if (_generate == null)
+                return;
+            _queryOption.SetEnabled(_createData);
+            _providersOption.SetEnabled(_createData || _createBehaviour);
+            _files = ActorFeatureTemplates.Build(_featureName, _namespaceName, _createData, _createBehaviour,
+                _createCommand, _createQueryAction && _createData, _createProviders && (_createData || _createBehaviour));
+            var error = Validate(_files);
+            _validation.text = error ?? string.Empty;
+            _validation.style.display = error != null ? DisplayStyle.Flex : DisplayStyle.None;
+            _generate.SetEnabled(error == null);
+            _generate.text = $"Generate {_files.Count} file(s)";
+            _saveDefaults.SetEnabled(ActorFeatureWriter.ValidateDefaults(_folder, _namespaceName) == null);
+            var choices = new List<string>(_files.Count);
+            for (var i = 0; i < _files.Count; i++)
+                choices.Add(_files[i].Name);
+            if (choices.Count == 0)
+                choices.Add("No files");
+            var selected = Math.Max(0, choices.IndexOf(_filePicker.value));
+            _filePicker.choices = choices;
+            _filePicker.SetValueWithoutNotify(choices[selected]);
+            _filePicker.SetEnabled(_files.Count > 0);
+            UpdateSource();
+        }
+
+        private void UpdateSource()
+        {
+            var index = _filePicker.index;
+            _source.SetValueWithoutNotify(_files != null && index >= 0 && index < _files.Count ? _files[index].Content : string.Empty);
+        }
+
+        private string Validate(IReadOnlyList<ActorFeatureFile> files) => ActorFeatureWriter.Validate(
+            Path.GetFullPath(Path.Combine(Application.dataPath, "..")), _folder, _featureName, _namespaceName, files);
+
+        private void Generate()
+        {
+            var error = Validate(_files);
+            if (error != null)
             {
-                EditorUtility.DisplayDialog("ABC Feature Scaffold", error, "Close");
+                RefreshPreview();
                 return;
             }
-
-            var folder = NormalizeFolder(_folder);
-            Directory.CreateDirectory(ToAbsolutePath(folder));
-            AssetDatabase.StartAssetEditing();
-
+            var folder = _folder.Replace('\\', '/').Trim().TrimEnd('/');
             try
             {
-                for (var i = 0; i < files.Count; i++)
-                {
-                    var path = ToAbsolutePath($"{folder}/{files[i].Name}");
-                    File.WriteAllText(path, files[i].Content, new UTF8Encoding(false));
-                }
+                WriteFiles(folder, _files);
+            }
+            catch (Exception exception) when (exception is InvalidOperationException ||
+                                              exception is IOException || exception is UnauthorizedAccessException)
+            {
+                EditorUtility.DisplayDialog("ABC Feature Scaffold", exception.Message, "Close");
+                return;
+            }
+            var firstAsset = AssetDatabase.LoadAssetAtPath<MonoScript>($"{folder}/{_files[0].Name}");
+            Selection.activeObject = firstAsset;
+            EditorGUIUtility.PingObject(firstAsset);
+            ShowNotification(new GUIContent($"Generated {_files.Count} files"));
+            RefreshPreview();
+        }
+
+        private void WriteFiles(string folder, IReadOnlyList<ActorFeatureFile> files)
+        {
+            AssetDatabase.StartAssetEditing();
+            try
+            {
+                ActorFeatureWriter.Write(Path.GetFullPath(Path.Combine(Application.dataPath, "..")),
+                    folder, _featureName, _namespaceName, files);
             }
             finally
             {
                 AssetDatabase.StopAssetEditing();
                 AssetDatabase.Refresh();
             }
-
-            var firstAssetPath = $"{folder}/{files[0].Name}";
-            var firstAsset = AssetDatabase.LoadAssetAtPath<MonoScript>(firstAssetPath);
-            Selection.activeObject = firstAsset;
-            EditorGUIUtility.PingObject(firstAsset);
-            ShowNotification(new GUIContent($"Generated {files.Count} files"));
         }
 
         private void BrowseFolder()
@@ -199,55 +208,32 @@ namespace Abc.Unity.Editor
             var selected = EditorUtility.OpenFolderPanel("ABC Feature Folder", Application.dataPath, string.Empty);
             if (string.IsNullOrEmpty(selected))
                 return;
-
-            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            var assetsRoot = Path.GetFullPath(Application.dataPath);
             var absolute = Path.GetFullPath(selected);
-            if (!absolute.StartsWith(projectRoot, StringComparison.OrdinalIgnoreCase))
+            var comparison = Application.platform == RuntimePlatform.WindowsEditor
+                ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            if (string.Equals(absolute, assetsRoot, comparison))
             {
-                EditorUtility.DisplayDialog("ABC Feature Scaffold", "Select a folder inside this Unity project.", "Close");
+                _folderField.value = "Assets";
                 return;
             }
-
-            _folder = NormalizeFolder(absolute.Substring(projectRoot.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        }
-
-        private static bool IsNamespace(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return false;
-
-            var parts = value.Split('.');
-            for (var i = 0; i < parts.Length; i++)
+            var prefix = assetsRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!absolute.StartsWith(prefix, comparison))
             {
-                if (!IsIdentifier(parts[i]))
-                    return false;
+                EditorUtility.DisplayDialog("ABC Feature Scaffold", "Select a folder inside this project's Assets folder.", "Close");
+                return;
             }
-
-            return true;
+            _folderField.value = "Assets/" + absolute.Substring(prefix.Length).Replace('\\', '/');
         }
 
-        private static bool IsIdentifier(string value)
+        internal static string GetSelectedFolder()
         {
-            if (string.IsNullOrWhiteSpace(value) || Keywords.Contains(value))
-                return false;
-            if (value[0] != '_' && !char.IsLetter(value[0]))
-                return false;
-
-            for (var i = 1; i < value.Length; i++)
-            {
-                if (value[i] != '_' && !char.IsLetterOrDigit(value[i]))
-                    return false;
-            }
-
-            return true;
-        }
-
-        private static string NormalizeFolder(string value) => value.Replace('\\', '/').Trim().TrimEnd('/');
-
-        private static string ToAbsolutePath(string assetPath)
-        {
-            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-            return Path.GetFullPath(Path.Combine(projectRoot, assetPath));
+            var path = AssetDatabase.GetAssetPath(Selection.activeObject);
+            if (string.IsNullOrEmpty(path))
+                return null;
+            if (!AssetDatabase.IsValidFolder(path))
+                path = Path.GetDirectoryName(path)?.Replace('\\', '/');
+            return path == "Assets" || path != null && path.StartsWith("Assets/", StringComparison.Ordinal) ? path : null;
         }
     }
 }

@@ -25,12 +25,11 @@ namespace Abc.Unity.Samples.BotArena
         private readonly Shader _fallbackShader;
         private readonly Material _materialTemplate;
 
-        public ArenaVisualFactory(Transform entityRoot)
+        public ArenaVisualFactory(Transform entityRoot, Material materialTemplate)
         {
             _entityRoot = entityRoot;
-            var fallbackMaterial = Resources.Load<Material>("BotArenaFallback");
-            _materialTemplate = fallbackMaterial;
-            _fallbackShader = fallbackMaterial != null ? fallbackMaterial.shader : Shader.Find("Standard");
+            _materialTemplate = materialTemplate;
+            _fallbackShader = materialTemplate != null ? materialTemplate.shader : Shader.Find("Standard");
 
             if (_fallbackShader == null)
                 throw new InvalidOperationException("Bot Arena could not resolve a compatible shader.");
@@ -209,7 +208,7 @@ namespace Abc.Unity.Samples.BotArena
             title.transform.position = new Vector3(0f, 0.04f, radius * 0.72f);
             title.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             var text = title.GetComponent<TextMesh>();
-            text.text = "ABC 2.0  /  BOT ARENA";
+            text.text = "ABC  /  BOT ARENA";
             text.anchor = TextAnchor.MiddleCenter;
             text.alignment = TextAlignment.Center;
             text.characterSize = 0.24f;

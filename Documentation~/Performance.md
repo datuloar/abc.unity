@@ -78,4 +78,4 @@ Editor timing does not replace player profiling. For release decisions:
 4. compare the complete gameplay workload rather than isolated API calls;
 5. keep a device-specific baseline in CI.
 
-The current repository has been compiled and tested on Unity 2022.3 LTS and Unity 6 and has produced a Windows Mono player. IL2CPP was not available on the validation machine, so IL2CPP performance and stripping remain a required release-gate check.
+The release scope is Unity 2022.3 LTS and Unity 6 on Windows with Windows x64 Mono players. IL2CPP performance and stripping remain a gate for any future expansion of that scope, not a claim made by this release.

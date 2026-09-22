@@ -48,6 +48,14 @@ namespace Abc.Unity
         internal int DataCount => _moduleStore?.DataCount ?? 0;
         internal int BehaviourCount => _moduleStore?.BehaviourCount ?? 0;
 
+#if UNITY_EDITOR
+        internal void CopyModulesTo(List<IActorModule> destination)
+        {
+            destination.Clear();
+            _moduleStore?.CopyModulesTo(destination);
+        }
+#endif
+
         private ActorModuleStore Modules => _moduleStore ??= new ActorModuleStore(this);
 
         private void Awake()

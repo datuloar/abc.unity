@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace Abc.Unity
@@ -43,6 +44,17 @@ namespace Abc.Unity
         public bool HasTickables => _ticks?.HasTickables == true;
         public bool HasFixedTickables => _ticks?.HasFixedTickables == true;
         public bool HasLateTickables => _ticks?.HasLateTickables == true;
+
+#if UNITY_EDITOR
+        internal void CopyModulesTo(List<IActorModule> destination)
+        {
+            if (_modules == null)
+                return;
+
+            for (var i = 0; i < _modules.Count; i++)
+                destination.Add(_modules[i].Module);
+        }
+#endif
 
         public void AddBlueprint(ActorBlueprint blueprint, bool initializeImmediately)
         {

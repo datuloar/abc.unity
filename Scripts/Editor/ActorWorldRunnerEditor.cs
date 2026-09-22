@@ -1,82 +1,65 @@
 using UnityEditor;
-using UnityEngine;
-
-using Abc.Unity;
+using UnityEngine.UIElements;
 
 namespace Abc.Unity.Editor
 {
     [CustomEditor(typeof(ActorWorldRunner))]
     internal sealed class ActorWorldRunnerEditor : UnityEditor.Editor
     {
-        private SerializedProperty _worldName;
-        private SerializedProperty _initialCapacity;
-        private SerializedProperty _runUpdate;
-        private SerializedProperty _runFixedUpdate;
-        private SerializedProperty _runLateUpdate;
-
-        private void OnEnable()
+        public override VisualElement CreateInspectorGUI()
         {
-            _worldName = serializedObject.FindProperty("_worldName");
-            _initialCapacity = serializedObject.FindProperty("_initialCapacity");
-            _runUpdate = serializedObject.FindProperty("_runUpdate");
-            _runFixedUpdate = serializedObject.FindProperty("_runFixedUpdate");
-            _runLateUpdate = serializedObject.FindProperty("_runLateUpdate");
+            var root = ActorEditorStyles.Root();
+            root.Add(ActorEditorStyles.Header("World Runner", "A Unity lifecycle host for scene-free simulation."));
+            var identity = ActorEditorStyles.Card("World");
+            identity.Add(ActorEditorStyles.Property(serializedObject, "_worldName", "Name"));
+            identity.Add(ActorEditorStyles.Property(serializedObject, "_initialCapacity", "Initial capacity"));
+            root.Add(identity);
+            var phases = ActorEditorStyles.Card("Automatic phases");
+            phases.Add(ActorEditorStyles.Property(serializedObject, "_runUpdate", "Update"));
+            phases.Add(ActorEditorStyles.Property(serializedObject, "_runFixedUpdate", "Fixed Update"));
+            phases.Add(ActorEditorStyles.Property(serializedObject, "_runLateUpdate", "Late Update"));
+            root.Add(phases);
+            AddRuntime(root, identity);
+            return root;
         }
 
-        public override void OnInspectorGUI()
+        private void AddRuntime(VisualElement root, VisualElement identity)
         {
-            serializedObject.Update();
-            ActorEditorStyles.DrawHeader("Actor World Runner", "Unity lifecycle host for scene-free simulation", "d_UnityEditor.GameView");
-
-            using (new EditorGUI.DisabledScope(EditorApplication.isPlaying))
+            var runner = (ActorWorldRunner)target;
+            var runtime = ActorEditorStyles.Card("Simulation");
+            var message = ActorEditorStyles.Text("The world is created in Awake or through GetOrCreateWorld().", "abc-muted");
+            runtime.Add(message);
+            var metrics = ActorEditorStyles.Row("abc-metrics");
+            var count = ActorEditorStyles.Metric(metrics, "Models");
+            var capacity = ActorEditorStyles.Metric(metrics, "Capacity");
+            var indexes = ActorEditorStyles.Metric(metrics, "Indexes");
+            runtime.Add(metrics);
+            var actions = ActorEditorStyles.Row();
+            var create = ActorEditorStyles.Button("Create world", () => runner.GetOrCreateWorld());
+            var dispose = ActorEditorStyles.Button("Dispose world", runner.DisposeWorld);
+            var explore = ActorEditorStyles.Button("Explore world", () => ActorWorldExplorerWindow.OpenWorld(runner.World), true);
+            actions.Add(create);
+            actions.Add(explore);
+            actions.Add(dispose);
+            runtime.Add(actions);
+            root.Add(runtime);
+            void Refresh()
             {
-                ActorEditorStyles.BeginCard();
-                GUILayout.Label("World", ActorEditorStyles.Section);
-                EditorGUILayout.PropertyField(_worldName, new GUIContent("Name"));
-                EditorGUILayout.PropertyField(_initialCapacity, new GUIContent("Initial Capacity"));
-                ActorEditorStyles.EndCard();
+                if (runner == null)
+                    return;
+                identity.SetEnabled(!EditorApplication.isPlaying);
+                var world = runner.HasWorld ? runner.World : null;
+                count.text = world?.Count.ToString() ?? "—";
+                capacity.text = world?.Capacity.ToString() ?? "—";
+                indexes.text = world?.IndexedDataTypeCount.ToString() ?? "—";
+                create.style.display = world == null ? DisplayStyle.Flex : DisplayStyle.None;
+                create.SetEnabled(EditorApplication.isPlaying);
+                explore.SetEnabled(world != null);
+                dispose.SetEnabled(world != null && EditorApplication.isPlaying);
+                message.style.display = world == null ? DisplayStyle.Flex : DisplayStyle.None;
             }
-
-            ActorEditorStyles.BeginCard();
-            GUILayout.Label("Automatic Phases", ActorEditorStyles.Section);
-            EditorGUILayout.BeginHorizontal();
-            _runUpdate.boolValue = GUILayout.Toggle(_runUpdate.boolValue, "Update", EditorStyles.miniButtonLeft);
-            _runFixedUpdate.boolValue = GUILayout.Toggle(_runFixedUpdate.boolValue, "Fixed", EditorStyles.miniButtonMid);
-            _runLateUpdate.boolValue = GUILayout.Toggle(_runLateUpdate.boolValue, "Late", EditorStyles.miniButtonRight);
-            EditorGUILayout.EndHorizontal();
-            ActorEditorStyles.EndCard();
-
-            serializedObject.ApplyModifiedProperties();
-            DrawRuntime((ActorWorldRunner)target);
-        }
-
-        private static void DrawRuntime(ActorWorldRunner runner)
-        {
-            ActorEditorStyles.BeginCard();
-            GUILayout.Label("Runtime", ActorEditorStyles.Section);
-
-            if (!runner.HasWorld)
-            {
-                EditorGUILayout.HelpBox("The world is created in Awake or explicitly through GetOrCreateWorld().", MessageType.Info);
-
-                if (EditorApplication.isPlaying && GUILayout.Button("Create World", ActorEditorStyles.CenteredButton))
-                    runner.GetOrCreateWorld();
-
-                ActorEditorStyles.EndCard();
-                return;
-            }
-
-            var world = runner.World;
-            EditorGUILayout.BeginHorizontal();
-            ActorEditorStyles.DrawMetric(world.Count.ToString(), "Models");
-            ActorEditorStyles.DrawMetric(world.Capacity.ToString(), "Capacity");
-            ActorEditorStyles.DrawMetric(world.IndexedDataTypeCount.ToString(), "Query Indexes");
-            EditorGUILayout.EndHorizontal();
-
-            if (EditorApplication.isPlaying && GUILayout.Button("Dispose World", ActorEditorStyles.CenteredButton))
-                runner.DisposeWorld();
-
-            ActorEditorStyles.EndCard();
+            runtime.schedule.Execute(Refresh).Every(500);
+            Refresh();
         }
     }
 }

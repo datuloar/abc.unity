@@ -127,13 +127,18 @@ Editor tooling must work in both Unity Personal and Pro skins, use `SerializedPr
 
 Use `Tools > ABC > Feature Scaffold` for routine feature boilerplate. Generated source must be deterministic, readable, compilable, editable, and safe to commit. It must never overwrite an existing file and must add zero runtime generator cost.
 
+For headless scaffolding use `-executeMethod Abc.Unity.Editor.ActorFeatureScaffold.Generate -abcFeature <Name> -abcNamespace <Namespace> -abcOutput Assets/<Folder>`. Read `Documentation~/AIReady.md` for the smallest adoption workflow. Do not add compatibility shims or a second component architecture. Keep existing scene assets and gameplay behavior unless the requested feature requires a change.
+
 When changing editor UI:
 
+- use native UI Toolkit controls and shared USS styling; do not add IMGUI, IMGUIContainer wrappers, or ReorderableList;
 - preserve keyboard and narrow-window usability;
 - use Unity-native controls and clear hierarchy;
 - show actionable validation beside the affected workflow;
 - keep editor APIs out of player assemblies;
 - update `Documentation~/EditorTooling.md` when the workflow changes.
+
+Do not assume a gameplay folder layout. Use the host project's existing folders and assembly definitions. Scaffold defaults are stored in `ProjectSettings/ABC.asset`; explicit `-abcOutput` and `-abcNamespace` arguments override them. Source output stays under the host Unity project's `Assets` directory. Keep asset references serialized or GUID-based instead of loading sample assets through fixed paths or `Resources` names. Use `Tools > ABC > World Explorer` to inspect worlds, modules, and runtime values before adding custom diagnostics.
 
 ## Asset Safety
 
@@ -162,7 +167,7 @@ Then validate proportionally:
 
 Bot Arena includes an optional test assembly guarded by the installed Test Framework package. Verify that importing the sample also compiles in a project without that package.
 
-The package targets Unity 2021.3+. Release validation currently covers Unity 2022.3 LTS and Unity 6. Do not imply that an unavailable Unity version or scripting backend was tested.
+The package minimum is Unity 2022.3. The agreed release scope is Unity 2022.3 LTS and Unity 6 on Windows with Windows x64 Mono players. Do not imply that untested platforms or IL2CPP are certified.
 
 ## Evidence and Positioning
 

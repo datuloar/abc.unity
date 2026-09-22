@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 
 using NUnit.Framework;
 using Unity.Profiling;
@@ -43,6 +44,19 @@ namespace Abc.Unity.Tests
             Assert.That(actor.GetData<TrackingData>(), Is.SameAs(data));
             Assert.That(behaviour.Owner, Is.SameAs(actor));
             Assert.That(behaviour.TickCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void MissingReadsDoNotCreateModuleStorage()
+        {
+            using var actor = new ActorModel("Empty");
+
+            Assert.Throws<InvalidOperationException>(() => actor.GetData<TrackingData>());
+            Assert.Throws<InvalidOperationException>(() => actor.GetBehaviour<CountingBehaviour>());
+
+            var modules = typeof(ActorModel).GetField("_modules", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(modules, Is.Not.Null);
+            Assert.That(modules.GetValue(actor), Is.Null);
         }
 
         [Test]
