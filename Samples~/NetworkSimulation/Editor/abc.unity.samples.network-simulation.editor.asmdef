@@ -1,0 +1,7 @@
+{
+    "name": "abc.unity.samples.network-simulation.editor",
+    "rootNamespace": "Abc.Unity.Samples.NetworkSimulation.Editor",
+    "references": ["abc.unity.samples.network-simulation"],
+    "includePlatforms": ["Editor"],
+    "autoReferenced": true
+}

@@ -12,6 +12,7 @@ namespace Abc.Unity
     {
         [SerializeField] private string _worldName = "Gameplay";
         [SerializeField, Min(0)] private int _initialCapacity = 1024;
+        [SerializeField] private bool _automaticUpdates = true;
         [SerializeField] private bool _runUpdate = true;
         [SerializeField] private bool _runFixedUpdate = true;
         [SerializeField] private bool _runLateUpdate = true;
@@ -19,6 +20,12 @@ namespace Abc.Unity
         private ActorWorld _world;
 
         public bool HasWorld => _world != null && !_world.IsDisposed;
+
+        public bool AutomaticUpdates
+        {
+            get => _automaticUpdates;
+            set => _automaticUpdates = value;
+        }
 
         public ActorWorld World => HasWorld
             ? _world
@@ -28,19 +35,19 @@ namespace Abc.Unity
 
         private void Update()
         {
-            if (_runUpdate && HasWorld)
+            if (_automaticUpdates && _runUpdate && HasWorld)
                 _world.Tick(Time.deltaTime);
         }
 
         private void FixedUpdate()
         {
-            if (_runFixedUpdate && HasWorld)
+            if (_automaticUpdates && _runFixedUpdate && HasWorld)
                 _world.FixedTick(Time.fixedDeltaTime);
         }
 
         private void LateUpdate()
         {
-            if (_runLateUpdate && HasWorld)
+            if (_automaticUpdates && _runLateUpdate && HasWorld)
                 _world.LateTick(Time.deltaTime);
         }
 

@@ -101,6 +101,16 @@ Each index contains:
 
 Multi-type queries select the smallest packed index, then test membership in the other sparse arrays. This avoids scanning unrelated world models without imposing per-model query metadata.
 
+## External simulation and network identity
+
+`ActorSimulation` advances one world through FixedTick and an optional physics callback. It reads no Unity clock and owns no world lifetime. A completed-step counter advances only after both phases return. Reentrancy is rejected; escaping failures fault the clock without pretending to roll back partially mutated gameplay. Existing per-behaviour exception isolation remains unchanged.
+
+`Actor.AutomaticUpdates` and `ActorWorldRunner.AutomaticUpdates` let an adapter replace ABC's automatic scheduling without disabling composition. External clocks must also coordinate Unity or third-party physics explicitly.
+
+`ActorNetworkMap` is an optional session-owned boundary object with narrow binding and lookup methods. Its two private maps use explicit `ActorNetworkId` values and actor reference identity, not mutable world slots or actor names. Destruction removes a binding; clearing a map releases subscriptions without destroying actors. No networking metadata is added to every model.
+
+The runtime stays transport-independent. Wire schema, peer authority, reconnect epochs, reliable lifecycle delivery and snapshots belong to a game adapter. See [Networking and server simulation](Networking.md).
+
 ## Memory model
 
 ABC data remains reference-oriented. Query indexes improve selection and dispatch cost, but they do not turn object data into contiguous value-type SoA storage. This is a deliberate usability tradeoff:

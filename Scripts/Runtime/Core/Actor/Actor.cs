@@ -29,6 +29,7 @@ namespace Abc.Unity
         [SerializeField] private ActorReactProperty<ActorTag> _tag = new ActorReactProperty<ActorTag>();
         [SerializeField] private List<ActorBlueprint> _blueprints = new List<ActorBlueprint>();
         [SerializeField] private bool _initializeOnAwake = true;
+        [SerializeField] private bool _automaticUpdates = true;
         [SerializeField] private bool _hasUpdate = true;
         [SerializeField] private bool _hasFixedUpdate = true;
         [SerializeField] private bool _hasLateUpdate = true;
@@ -41,6 +42,19 @@ namespace Abc.Unity
         public IReadOnlyActorReactProperty<bool> IsAlive => _isAlive;
         public IReadOnlyActorReactProperty<bool> IsInitialized => _isInitialized;
         public IReadOnlyActorReactProperty<ActorTag> Tag => _tag;
+
+        public bool AutomaticUpdates
+        {
+            get => _automaticUpdates;
+            set
+            {
+                EnsureMutable();
+                if (_automaticUpdates == value)
+                    return;
+                _automaticUpdates = value;
+                RefreshUpdateRegistration();
+            }
+        }
 
         public event Action Destroyed;
 
@@ -247,7 +261,7 @@ namespace Abc.Unity
 
         private void RefreshUpdateRegistration()
         {
-            var canRegister = _phase == LifecyclePhase.Initialized && _isAlive.Value && isActiveAndEnabled;
+            var canRegister = _automaticUpdates && _phase == LifecyclePhase.Initialized && _isAlive.Value && isActiveAndEnabled;
             var modules = _moduleStore;
             var tick = canRegister && _hasUpdate && modules?.HasTickables == true;
             var fixedTick = canRegister && _hasFixedUpdate && modules?.HasFixedTickables == true;

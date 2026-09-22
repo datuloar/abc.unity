@@ -18,7 +18,9 @@
     "simulation",
     "query",
     "ai-ready",
-    "prototyping"
+    "prototyping",
+    "network-ready",
+    "headless"
   ],
   "dependencies": {},
   "samples": [
@@ -31,6 +33,11 @@
       "displayName": "Bot Arena",
       "description": "Playable top-down shooter with bots, Blueprints, typed commands, ActorWorld, and allocation-free struct queries",
       "path": "Samples~/BotArena"
+    },
+    {
+      "displayName": "Network Simulation",
+      "description": "Transport-neutral authoritative input, stable network IDs, fixed ticks, snapshots, and headless local-scene physics",
+      "path": "Samples~/NetworkSimulation"
     }
   ],
   "author": {

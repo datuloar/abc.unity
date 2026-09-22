@@ -58,6 +58,18 @@ ProfilerRecorder.StartNew(
 
 Retained-memory tests keep 20,000 models alive while measuring the managed heap. The one-behaviour shape deliberately implements both `IActorTick` and a command listener, so it includes both lazy registries.
 
+## Networking allocation coverage
+
+`ActorNetworkPerformanceTests` warms an identity map and fixed simulation before measuring 10,000 combined forward/reverse lookups and steps. Both validated Editor/Mono versions recorded zero `GC.Alloc` samples.
+
+The Network Simulation sample's PlayMode allocation test warms its server session and then measures 1,000 iterations of validated input, fixed gameplay, isolated 3D physics and caller-array snapshot extraction. It recorded zero `GC.Alloc` samples on Unity 2022.3.62f2 and 6000.0.71f1. This one-body reference workload excludes spawn/despawn, binding, serializers, sockets, presentation and game-specific collision callbacks. It is an allocation regression, not a server-capacity or throughput benchmark.
+
+`ServerSnapshotPerformanceTests` separately checks both full and delta encoding. Each case warms 10,000 quantize/encode/decode iterations, then measures another 10,000 with `ProfilerRecorder`. Both modes recorded zero `GC.Alloc` samples on the same two Unity/Mono versions. Five additional batches report median codec-only elapsed time for local diagnostics; that timing excludes physics, sockets, peer history and the game workload and is not a player-capacity claim.
+
+Codec regression vectors assert 22-byte full, 7-byte moving and 5-byte unchanged records for the documented small-ID/counter case. The reader is exercised with every field mask, range/counter boundaries, missing/wrong baselines, truncation, overflow, invalid formats, 10,000 seeded state round trips and 20,000 bounded random payloads. See [Server scale and bandwidth](ServerScaling.md) for the exact schema, bandwidth exclusions and the required end-to-end load-test methodology.
+
+The Windows Mono headless sample also measures its one-body 300-step workload at 60 Hz with 100 snapshots at 20 Hz. Unity 2022.3 and Unity 6 both encoded 866 record bytes, versus 2,316 bytes with forced full encoding of the same quantized states (about 62.6% smaller). This immediate local loopback has no ACK delay, sockets, packet loss, transport overhead or interest management; it is a reproducible sample result, not an online traffic forecast. Reproduce it with the sample README's `-abcServerSmoke` command.
+
 ## Running the suite
 
 Open Unity Test Runner and run `abc.unity.tests` in EditMode, or use Unity command line:
@@ -67,6 +79,12 @@ Unity.exe -batchmode -nographics -projectPath <project> -runTests -testPlatform 
 ```
 
 The package must be listed under `testables` in the host project's package manifest when installed as a package dependency.
+
+With Network Simulation imported, run its physics and codec tests separately in PlayMode:
+
+```text
+Unity.exe -batchmode -nographics -projectPath <project> -runTests -testPlatform PlayMode -testFilter Abc.Unity.Samples.NetworkSimulation.Tests -testResults <network-results.xml> -logFile <network-log.txt>
+```
 
 ## Player validation
 

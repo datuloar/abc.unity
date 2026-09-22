@@ -2,6 +2,13 @@
 
 ## 2.0.0
 
+- Added an optional sample snapshot codec with quantized per-field deltas, full-state fallback, bounded parsing and explicit receiver-baseline checks.
+- Separated sample simulation and snapshot rates, added codec allocation/size/invalid-packet tests and headless round-trip checks, and documented online server bandwidth and load-test budgets.
+- Documented realistic adapter boundaries for Mirror, Photon Fusion/PUN/Quantum, PurrNet, ENet-CSharp, FishNet, LiteNetLib and Unity Netcode, including which rollback engines cannot drive ABC state directly.
+- Added transport-independent fixed simulation steps, stable network identity maps, and external-clock switches for scene Actors and World Runners.
+- Added Network Simulation with authoritative input validation, caller-buffer snapshots, isolated server physics and a headless player smoke check.
+- Documented FishNet/LiteNetLib adapter boundaries, single-thread and single-clock rules, identity epochs, and the distinction between networking integration and an included netcode stack.
+
 - Rebuilt all ABC editor windows, inspectors, and the tag drawer on native UI Toolkit with shared light/dark styling, a searchable provider picker, serialized Undo support, and full scaffold source previews.
 - Added World Explorer with scoped search, virtualized model and scene browsing, read-only runtime state, source navigation, and diagnostic snapshots.
 - Added project-specific scaffold defaults, selected-folder output, and GUID-based tracking of moved folders.

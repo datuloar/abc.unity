@@ -27,6 +27,8 @@ namespace Abc.Unity.Editor
             authoring.Add(composition);
             var phases = ActorEditorStyles.Card("Lifecycle & scheduling");
             phases.Add(ActorEditorStyles.Property(serializedObject, "_initializeOnAwake", "Initialize on Awake"));
+            phases.Add(ActorEditorStyles.Property(serializedObject, "_automaticUpdates", "Automatic updates"));
+            phases.Add(ActorEditorStyles.Text("Disable automatic updates when a network tick drives this actor.", "abc-muted"));
             phases.Add(ActorEditorStyles.Property(serializedObject, "_hasUpdate", "Update"));
             phases.Add(ActorEditorStyles.Property(serializedObject, "_hasFixedUpdate", "Fixed Update"));
             phases.Add(ActorEditorStyles.Property(serializedObject, "_hasLateUpdate", "Late Update"));

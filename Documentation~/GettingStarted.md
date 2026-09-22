@@ -133,6 +133,12 @@ world.Query<PositionData, MovementData>()
 
 See [High-performance queries](Queries.md) for the delegate and struct-action forms.
 
+## Add networking without changing composition
+
+Import **Network Simulation** for a minimal server session. Drive `ActorSimulation.Step()` from one external fixed clock and bind initialized actors to explicit IDs with `ActorNetworkMap`. Disable `AutomaticUpdates` on scene Actors or World Runners controlled by that clock. Authoritative logic uses `IActorFixedTick`; visual updates stay separate.
+
+The same gameplay modules can use FishNet, LiteNetLib or another game-owned adapter. ABC does not turn local commands into RPCs automatically. Read [Networking and server simulation](Networking.md) before wiring input, authority or physics.
+
 ## Recommended boundaries
 
 - Use `Actor` for presentation, physics, animation, input, and scene references.

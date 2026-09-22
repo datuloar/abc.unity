@@ -16,6 +16,8 @@ Use the smallest route that matches the task:
 | Composition or lookup | `ActorModuleStore*`, `ActorModuleMap.cs`, `ActorCompositionExtensions.cs` |
 | Commands | `ActorCommandRegistry.cs`, `Scripts/Runtime/Core/Command` |
 | Large model sets | `ActorWorld.cs`, `ActorWorld.Queries.cs`, `ActorWorldQuery.cs` |
+| Networking or server physics | `Documentation~/Networking.md`, `Scripts/Runtime/Core/Simulation`, `Scripts/Runtime/Core/Networking`, `Samples~/NetworkSimulation` |
+| Bandwidth or online server capacity | `Documentation~/ServerScaling.md`, sample snapshot codec and its tests |
 | Unity authoring | `Scripts/Editor`, `Documentation~/EditorTooling.md` |
 | Usage examples | `Documentation~/GettingStarted.md`, `Samples~/Basic`, `Samples~/BotArena` |
 | Performance evidence | `Tests/Editor/ActorPerformanceTests.cs`, `Documentation~/Performance.md` |
@@ -34,6 +36,8 @@ Do not load the whole repository when one route is enough.
 - `ActorBlueprint` provides reusable Unity-authored composition.
 - `ActorRegistry` is the read-only lookup facade for initialized scene `Actor` instances.
 - `ActorWorldRunner` is an optional scene host; worlds are not global singletons.
+- `ActorSimulation` runs externally clocked FixedTick and an optional caller-owned physics step, not rendering or transport.
+- `ActorNetworkMap` binds explicit nonzero `ActorNetworkId` values to initialized actors within one session.
 
 Use `Actor` for Transform, physics, animation, and inspector-authored objects. Use `ActorModel` for scene-free gameplay and tests. Add `ActorWorld` when ownership, batch updates, or indexed queries are useful. Do not introduce a second component model for scale.
 
@@ -71,6 +75,22 @@ Generated gameplay code uses one runtime namespace: `Abc.Unity`.
 
 Preserve these invariants transactionally. Never leave half-registered modules, listeners, tickables, ownership, or query entries after an exception.
 
+## Networking Boundary
+
+For replication, prefer the selected SDK's existing observer, delta and send-budget facilities. The optional sample codec is not a core replication engine. Capture/quantize shared state once per replication tick; never recapture the entire world separately for each recipient. Only delta against authenticated, receiver-acknowledged immutable baselines. Bound per-peer history and queues, keep session epochs explicit, and recover missing baselines with full state. Do not equate zero allocations or byte-count examples with proven player capacity; require end-to-end load evidence.
+
+`Documentation~/Networking.md` has the SDK-specific boundary matrix for Mirror, Photon Fusion/PUN/Quantum, PurrNet, ENet-CSharp, FishNet, LiteNetLib and Unity Netcode. A listed integration target means the ABC simulation API can participate through a game-owned adapter; it does not imply a packaged adapter or tested SDK-version compatibility. Never tick an ABC stateful world in a framework rollback/resimulation callback unless its state can be restored and replayed. Quantum authoritative logic stays in Quantum; ABC can provide views and tools around it.
+
+- Keep network SDK types, serializers and wire schemas in game-owned adapter assemblies, not gameplay modules or the ABC runtime.
+- Use exactly one authoritative clock per world/actor and one physics driver per physics scene. Disable `AutomaticUpdates` before an external clock takes over.
+- Put authoritative logic in `IActorFixedTick` when using `ActorSimulation`; it does not run Update/LateUpdate behaviours.
+- Keep world, actor and Unity physics mutations on the simulation/main thread. Background receivers enqueue bounded input only.
+- Validate authenticated ownership, schema/length, values, sequence and work budgets before local command dispatch. `SendCommand` is not an RPC or permission check.
+- Use explicit network IDs with a session epoch and spawn generation where required. Never serialize type IDs, world slots, hashes, instance IDs or actor object graphs.
+- Capture explicit numeric snapshots after physics using caller-owned buffers. Transport, replication, prediction, reconnect and rollback are separate adapter responsibilities.
+- Do not silently change global physics/time settings or promise cross-platform determinism. A faulted simulation is not a rolled-back simulation.
+- The network identity map is a deliberately public narrow boundary API; its mutable dictionaries and bindings remain private.
+
 ## Performance Contract
 
 The warmed hot paths are module access, tick dispatch, command dispatch, and world queries.
@@ -104,6 +124,7 @@ Assembly names and package identity stay lowercase for compatibility. C# namespa
 - Tests: `Abc.Unity.Tests`
 - Basic sample: `Abc.Unity.Samples.Basic`
 - Bot Arena sample: `Abc.Unity.Samples.BotArena`
+- Network Simulation sample: `Abc.Unity.Samples.NetworkSimulation`
 
 ## Code Standard
 
@@ -160,12 +181,12 @@ Then validate proportionally:
 
 1. Run focused EditMode tests for the changed subsystem.
 2. Run the full `abc.unity.tests` EditMode suite.
-3. Compile the imported Basic and Bot Arena samples after public API or assembly changes.
+3. Compile the imported Basic, Bot Arena and Network Simulation samples after public API or assembly changes.
 4. Build a player after runtime, assembly, or serialization changes.
 5. Run performance tests after storage, dispatch, lookup, or query changes.
 6. Check the Console for new warnings as well as errors.
 
-Bot Arena includes an optional test assembly guarded by the installed Test Framework package. Verify that importing the sample also compiles in a project without that package.
+Bot Arena and Network Simulation include optional test assemblies guarded by the installed Test Framework package. Verify that importing the samples also compiles in a project without that package. Network Simulation tests run in PlayMode, not EditMode, because runtime local physics scenes require Play Mode. For networking changes, run those tests and the headless physics player smoke check on each validated Windows Mono version. Named networking SDK adapters, optimized Dedicated Server targets and wire-level multiplayer tests need separate evidence.
 
 The package minimum is Unity 2022.3. The agreed release scope is Unity 2022.3 LTS and Unity 6 on Windows with Windows x64 Mono players. Do not imply that untested platforms or IL2CPP are certified.
 

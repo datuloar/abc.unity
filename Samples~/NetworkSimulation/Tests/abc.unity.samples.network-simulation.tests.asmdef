@@ -1,0 +1,16 @@
+{
+    "name": "abc.unity.samples.network-simulation.tests",
+    "rootNamespace": "Abc.Unity.Samples.NetworkSimulation.Tests",
+    "references": ["abc.unity", "abc.unity.samples.network-simulation"],
+    "includePlatforms": [],
+    "defineConstraints": ["UNITY_INCLUDE_TESTS", "ABC_NETWORK_SIMULATION_TESTS"],
+    "versionDefines": [
+        {
+            "name": "com.unity.test-framework",
+            "expression": "1.0.0",
+            "define": "ABC_NETWORK_SIMULATION_TESTS"
+        }
+    ],
+    "optionalUnityReferences": ["TestAssemblies"],
+    "autoReferenced": false
+}

@@ -1,0 +1,6 @@
+{
+    "name": "abc.unity.samples.network-simulation",
+    "rootNamespace": "Abc.Unity.Samples.NetworkSimulation",
+    "references": ["abc.unity"],
+    "autoReferenced": true
+}

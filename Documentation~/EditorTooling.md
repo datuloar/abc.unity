@@ -46,6 +46,12 @@ The dashboard combines authoring and runtime diagnostics:
 
 The ActorWorld diagnostic registry is compiled only in the Unity Editor and uses weak references. Open diagnostic windows retain their current inspection snapshot until refreshed or closed. Diagnostics add no player runtime work.
 
+## External-clock authoring
+
+Actor and World Runner inspectors expose **Automatic updates**. Leave it enabled for ordinary Unity-driven gameplay; disable it before a network clock takes over all ABC update phases. The World Runner inspector disables automatic-phase options and explains the single-clock rule in manual mode. This setting does not control global Unity physics or another library's scheduler.
+
+With the Network Simulation sample imported, `GameObject → ABC Samples → Server Physics Host` creates a renderer-free example. Enter Play Mode and inspect **Network Server** through World Explorer. The session's normal ABC data exposes identity, owner, accepted/applied input sequence and current movement alongside its physics body reference.
+
 ## World Explorer
 
 Open `Tools → ABC → World Explorer` or use **Open World Explorer** on the Dashboard. Each world row on the Dashboard can also open that world directly.

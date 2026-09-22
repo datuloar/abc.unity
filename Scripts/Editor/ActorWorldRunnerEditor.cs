@@ -1,4 +1,5 @@
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
 namespace Abc.Unity.Editor
@@ -14,11 +15,24 @@ namespace Abc.Unity.Editor
             identity.Add(ActorEditorStyles.Property(serializedObject, "_worldName", "Name"));
             identity.Add(ActorEditorStyles.Property(serializedObject, "_initialCapacity", "Initial capacity"));
             root.Add(identity);
+            root.Add(ActorEditorStyles.Property(serializedObject, "_automaticUpdates", "Automatic updates"));
+            var clockHint = new HelpBox(
+                "Disable automatic updates when a network clock drives this world. Only one clock may advance simulation and physics.",
+                HelpBoxMessageType.Info);
+            root.Add(clockHint);
             var phases = ActorEditorStyles.Card("Automatic phases");
             phases.Add(ActorEditorStyles.Property(serializedObject, "_runUpdate", "Update"));
             phases.Add(ActorEditorStyles.Property(serializedObject, "_runFixedUpdate", "Fixed Update"));
             phases.Add(ActorEditorStyles.Property(serializedObject, "_runLateUpdate", "Late Update"));
             root.Add(phases);
+            root.TrackSerializedObjectValue(serializedObject, _ => RefreshClock());
+            void RefreshClock()
+            {
+                var automatic = serializedObject.FindProperty("_automaticUpdates").boolValue;
+                phases.SetEnabled(automatic);
+                clockHint.style.display = automatic ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+            RefreshClock();
             AddRuntime(root, identity);
             return root;
         }

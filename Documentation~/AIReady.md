@@ -85,6 +85,22 @@ Add tests and use the existing ABC lifecycle and command contracts.
 
 The agent should infer the normal ABC shape, explain only meaningful tradeoffs, and avoid introducing services or abstractions that the request does not need.
 
+## Network feature prompt
+
+```text
+Read ABC's Networking.md and the Network Simulation sample.
+Integrate the project's existing network library through a separate adapter assembly.
+Keep gameplay modules independent of its APIs. Use one authoritative fixed clock,
+stable network IDs with reconnect epochs, validated peer-owned input, and explicit DTOs.
+Keep Unity physics on the main thread and give each scene exactly one physics driver.
+Use caller-owned buffers, cache dependencies, and test stale/duplicate/malformed inputs.
+Do not claim prediction, rollback or transport support that has not been integration-tested.
+```
+
+`ActorSimulation` runs fixed behaviours only. Do not silently generate authoritative movement as `IActorTick` when the requested host advances only fixed ticks. The current scaffold emits an Update behaviour; change it explicitly to `IActorFixedTick` for this workflow. Networking does not require new component types, generated replication registries, or game-wide reflection.
+
+For large online games, also read [Server scale and bandwidth](ServerScaling.md). Reuse the chosen SDK's observer/delta features first. If a custom wire schema is necessary, the sample codec shows caller-buffer encoding with checked baselines and full fallback; it does not implement peer history or ACK delivery. Generate explicit per-peer budgets, authenticated epoch handling and loss/reconnect tests at the adapter boundary. Avoid per-peer full-world extraction, unbounded reliable queues and player-capacity claims based on microbenchmarks.
+
 ## Human readability
 
 - Generated types use domain names rather than keys or numeric IDs.

@@ -9,7 +9,7 @@
 <p align="center">
   <img alt="Unity 2022.3+" src="https://img.shields.io/badge/Unity-2022.3%2B-222222?style=flat-square&logo=unity">
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2ea44f?style=flat-square">
-  <img alt="121 tests" src="https://img.shields.io/badge/tests-121%20passing-2ea44f?style=flat-square">
+  <img alt="166 tests" src="https://img.shields.io/badge/tests-166%20passing-2ea44f?style=flat-square">
   <img alt="zero allocation hot paths" src="https://img.shields.io/badge/hot%20paths-0%20GC.Alloc-1688f0?style=flat-square">
   <img alt="AI-ready workflow" src="https://img.shields.io/badge/workflow-AI--ready-7c5cff?style=flat-square">
 </p>
@@ -27,6 +27,7 @@ ABC is a free Actor Behaviour Component framework for Unity. It combines an appr
 | Let a designer tune it | Built-in Blueprint inspector with inline fields and Undo |
 | Process thousands of models | Keep the same data; cache a world query and use a struct action |
 | Adopt it in an existing game | Convert one mechanic while keeping scene assets and Unity systems |
+| Add multiplayer or a headless server | External fixed ticks, stable network IDs, explicit physics and a transport-neutral sample |
 
 - `Actor` composes normal GameObjects, MonoBehaviours, data, commands, and reusable blueprints.
 - `ActorModel` runs the same gameplay API without GameObjects.
@@ -46,6 +47,7 @@ ABC is a free Actor Behaviour Component framework for Unity. It combines an appr
 - [90-second start](#90-second-start)
 - [AI-ready by design](#ai-ready-by-design)
 - [Scale without a rewrite](#scale-without-a-rewrite)
+- [Network-ready simulation](#network-ready-simulation)
 - [Unity workflow](#unity-workflow)
 - [Performance contract](#performance-contract)
 - [Design comparison](#design-comparison)
@@ -81,7 +83,7 @@ Add the Git package to `Packages/manifest.json`:
 }
 ```
 
-Import the Basic sample for the smallest learning path or Bot Arena for a playable production-shaped example. No source generator, analyzer label, scripting define, or third-party inspector is required.
+Import Basic for the smallest learning path, Bot Arena for a playable example, or Network Simulation for an authoritative headless physics boundary. No source generator, analyzer label, scripting define, or third-party inspector is required.
 
 ## 90-second start
 
@@ -184,6 +186,23 @@ query.For(ref action);
 Query indexes are created lazily per concrete data type. A one-type query walks a packed reference array. Multi-type queries start from the smallest index and perform O(1) sparse membership checks against the remaining indexes. Warmed-up iteration creates no garbage.
 
 Queries currently support one to three concrete data types plus `WithTag`, `WithoutTag`, and `OnlyAlive`. Polymorphic `GetData<TInterface>()` remains available for composition, while world queries deliberately require exact concrete types for predictable indexing.
+
+## Network-ready simulation
+
+**Bring your network stack; keep your gameplay.** ABC provides external fixed-step execution, stable session-local network identities, and manual-clock switches for both scene Actors and World Runners. No FishNet, Mirror, Photon, PurrNet, ENet-CSharp, LiteNetLib, or other transport dependency is imposed on the package.
+
+```csharp
+runner.AutomaticUpdates = false;
+var simulation = new ActorSimulation(runner.GetOrCreateWorld(), 1f / 60f);
+```
+
+At the server's tick, validate input, call `simulation.Step()`, then capture explicit snapshot DTOs. Supply an optional physics delegate for a caller-owned local physics scene, or let your network framework own physics and capture after its physics hook. One clock advances each world and physics scene.
+
+The **Network Simulation** sample demonstrates server-owned movement, peer/sequence/value validation, stable IDs, caller-buffer snapshots, and isolated Rigidbody/Collider simulation without cameras or renderers. It also includes a zero-allocation quantized delta codec with full-state fallback, explicit baseline checks, and separate 60 Hz simulation / 20 Hz snapshot pacing. Its headless smoke mode checks 300 fixed steps, floor collisions and a local codec round trip. Inspect the same live server world through World Explorer in the Editor.
+
+ABC is ready to integrate at the simulation boundary with FishNet, Mirror, Photon Fusion/PUN/Quantum, PurrNet, ENet-CSharp, LiteNetLib, and Unity Netcode. This describes where game-owned adapters can connect; it does not claim shipped or tested SDK adapters. Transport, serialization, replication, authentication, prediction and reconnect rules remain with the selected framework and game. See [Networking and server simulation](Documentation~/Networking.md) for per-framework guidance, threading rules and validated scope.
+
+For a large online RPG, start with [Server scale and bandwidth](Documentation~/ServerScaling.md): interest management, acknowledged deltas, byte budgets, zone ownership and a reproducible load-test gate. The sample's measured small-ID moving record is 7 bytes versus 22 bytes for its full quantized record; this excludes transport overhead and is not an MMO player-capacity claim. Use your netcode SDK's replication when it already fits the game.
 
 ## Unity workflow
 
@@ -327,20 +346,21 @@ See [Market and design comparison](Documentation~/Comparison.md) for a source-li
 
 ## Validation
 
-The current validation contains 121 EditMode tests: 112 package tests and 9 imported Bot Arena tests. Coverage includes lifecycle order and rollback, cross-actor module isolation, exact and polymorphic lookup, compact-to-wide module map transitions, Blueprint cloning and asset ownership, nested actors, self-destruction during initialization, command failures and mutation, reentrant world cleanup, randomized composition, tag serialization, query filtering, public API encapsulation, cached views, one/two/three-type queries, safe deterministic scaffolding, folder relocation, native UI Toolkit inspectors, multi-object tag Undo, World Explorer snapshots, projectile collision, retained memory, and warmed-up allocations.
+Validation covers 166 tests per supported Unity version: 134 package and 9 Bot Arena EditMode tests, plus 23 Network Simulation PlayMode tests. Coverage includes lifecycle order and rollback, cross-actor module isolation, exact and polymorphic lookup, compact-to-wide module map transitions, Blueprint cloning and asset ownership, nested actors, self-destruction during initialization, command failures and mutation, reentrant world cleanup, randomized composition, tag serialization, query filtering, public API encapsulation, cached views, one/two/three-type queries, safe deterministic scaffolding, folder relocation, native UI Toolkit inspectors, multi-object tag Undo, World Explorer snapshots, projectile collision, retained memory, warmed-up allocations, network ID lifetime, external clock switching, authority/input validation, independent physics sessions, post-physics snapshots, codec bounds, every delta field mask, explicit baseline mismatch rejection and allocation-free full/delta round trips.
 
-The release scope is Unity 2022.3 LTS and Unity 6 on Windows, with Windows x64 Mono players. Basic and Bot Arena are checked as imported samples. Unity 2021.3 is below the package minimum; IL2CPP, other operating systems, and URP/HDRP sample presentation are outside the validated release scope.
+The release scope is Unity 2022.3 LTS and Unity 6 on Windows, with Windows x64 Mono players. Basic, Bot Arena and Network Simulation are checked as imported samples. Unity 2021.3 is below the package minimum; IL2CPP, other operating systems, optimized Dedicated Server targets, and URP/HDRP sample presentation are outside the validated release scope. Networking-library adapters require their own wire-level integration tests.
 
 ## Documentation
 
 - [Getting started](Documentation~/GettingStarted.md)
 - [Architecture and lifecycle](Documentation~/Architecture.md)
 - [High-performance queries](Documentation~/Queries.md)
+- [Networking and server simulation](Documentation~/Networking.md)
+- [Server scale and bandwidth](Documentation~/ServerScaling.md)
 - [Editor tooling](Documentation~/EditorTooling.md)
 - [AI-ready development](Documentation~/AIReady.md)
 - [Market and design comparison](Documentation~/Comparison.md)
 - [Performance methodology](Documentation~/Performance.md)
-- [Release scope and packaging](Documentation~/Release2.md)
 
 ## License
 
