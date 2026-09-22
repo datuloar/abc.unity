@@ -36,6 +36,11 @@ foreach ($File in $SourceFiles) {
         $Failures.Add("Deferred-work marker found: $RelativePath")
     }
 
+    if ($RelativePath -match '^Scripts[\\/]Editor[\\/]' -and
+        $Content -match '\b(OnGUI|OnInspectorGUI|IMGUIContainer|ReorderableList|GUILayout|EditorGUILayout)\b|\bEditorGUI\.') {
+        $Failures.Add("Legacy editor UI found: $RelativePath")
+    }
+
     foreach ($Match in [regex]::Matches($Content, "(?m)^\s*namespace\s+([^\s{]+)")) {
         if (-not $Match.Groups[1].Value.StartsWith("Abc.Unity", [System.StringComparison]::Ordinal)) {
             $Failures.Add("Unexpected namespace in $RelativePath`: $($Match.Groups[1].Value)")
@@ -46,7 +51,7 @@ foreach ($File in $SourceFiles) {
 $JsonFiles = Get-ChildItem -LiteralPath $RepositoryRoot -Recurse -File | Where-Object {
     $_.Extension -eq ".json" -or $_.Extension -eq ".asmdef"
 } | Where-Object {
-    $_.FullName -notmatch "[\\/]Library[\\/]" -and $_.FullName -notmatch "[\\/]Temp[\\/]"
+    [System.IO.Path]::GetRelativePath($RepositoryRoot, $_.FullName) -notmatch "(^|[\\/])(Library|Temp)[\\/]"
 }
 
 foreach ($File in $JsonFiles) {
@@ -75,10 +80,11 @@ foreach ($SourceRoot in $SourceRoots) {
 
 $Guids = @{}
 foreach ($MetaFile in Get-ChildItem -LiteralPath $RepositoryRoot -Recurse -Filter "*.meta" -File | Where-Object {
-    $_.FullName -notmatch "[\\/]Library[\\/]" -and $_.FullName -notmatch "[\\/]Temp[\\/]"
+    [System.IO.Path]::GetRelativePath($RepositoryRoot, $_.FullName) -notmatch "(^|[\\/])(Library|Temp)[\\/]"
 }) {
     $Match = [regex]::Match([System.IO.File]::ReadAllText($MetaFile.FullName), "(?m)^guid:\s*([0-9a-f]{32})\s*$")
     if (-not $Match.Success) {
+        $Failures.Add("Invalid Unity GUID: $($MetaFile.FullName)")
         continue
     }
 
@@ -93,15 +99,49 @@ foreach ($MetaFile in Get-ChildItem -LiteralPath $RepositoryRoot -Recurse -Filte
     }
 }
 
-Push-Location $RepositoryRoot
-try {
-    $GitOutput = & git diff --check 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        $Failures.Add("git diff --check failed: $($GitOutput -join ' ')")
+$PackagePath = Join-Path $RepositoryRoot "package.json"
+if ($JsonFiles.Count -eq 0 -or $Guids.Count -eq 0) {
+    $Failures.Add("Package metadata validation cannot be empty.")
+}
+$Package = Get-Content -LiteralPath $PackagePath -Raw | ConvertFrom-Json
+if ($Package.name -ne "com.abc.unity" -or $Package.version -notmatch '^\d+\.\d+\.\d+$') {
+    $Failures.Add("Package identity or release version is invalid.")
+}
+foreach ($Sample in $Package.samples) {
+    if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot $Sample.path) -PathType Container)) {
+        $Failures.Add("Missing declared sample: $($Sample.path)")
     }
 }
-finally {
-    Pop-Location
+
+$MarkdownFiles = Get-ChildItem -LiteralPath $RepositoryRoot -Recurse -Filter "*.md" -File
+foreach ($MarkdownFile in $MarkdownFiles) {
+    $Markdown = Get-Content -LiteralPath $MarkdownFile.FullName -Raw
+    foreach ($Link in [regex]::Matches($Markdown, '\]\(([^)]+)\)|<img[^>]+src="([^"]+)"')) {
+        $Target = if ($Link.Groups[1].Success) { $Link.Groups[1].Value } else { $Link.Groups[2].Value }
+        if ($Target -match '^(https?://|mailto:|#)') {
+            continue
+        }
+        $Target = [Uri]::UnescapeDataString(($Target -split '#', 2)[0])
+        if (-not (Test-Path -LiteralPath (Join-Path $MarkdownFile.DirectoryName $Target))) {
+            $Failures.Add("Broken documentation link in $($MarkdownFile.Name): $Target")
+        }
+    }
+}
+
+if (Test-Path -LiteralPath (Join-Path $RepositoryRoot ".git")) {
+    Push-Location $RepositoryRoot
+    try {
+        $GitOutput = & git diff --check 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            $Failures.Add("git diff --check failed: $($GitOutput -join ' ')")
+        }
+    }
+    finally {
+        Pop-Location
+    }
+}
+else {
+    Write-Host "Git diff check skipped: installed package has no checkout metadata."
 }
 
 if ([string]::IsNullOrWhiteSpace($UnityEditorPath) -xor [string]::IsNullOrWhiteSpace($UnityProjectPath)) {

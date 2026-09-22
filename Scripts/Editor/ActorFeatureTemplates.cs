@@ -99,8 +99,8 @@ namespace Abc.Unity.Editor
             bool handlesCommand)
         {
             var interfaces = handlesCommand
-                ? $"IActorBehaviour, IActorTick, IActorCommandListener<{featureName}Command>"
-                : "IActorBehaviour, IActorTick";
+                ? $"IActorBehaviour, IActorCommandListener<{featureName}Command>"
+                : "IActorBehaviour";
             var lines = new List<string>(24)
             {
                 "using System;",
@@ -127,11 +127,6 @@ namespace Abc.Unity.Editor
                 lines.Add(string.Empty);
                 lines.Add($"        public void Initialize() => Data = Owner.GetData<{featureName}Data>();");
             }
-
-            lines.Add(string.Empty);
-            lines.Add("        public void Tick(float deltaTime)");
-            lines.Add("        {");
-            lines.Add("        }");
 
             if (handlesCommand)
             {

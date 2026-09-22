@@ -2,372 +2,234 @@ using System;
 using System.Collections.Generic;
 
 using UnityEditor;
-using UnityEditorInternal;
+using UnityEditor.UIElements;
 using UnityEngine;
-
-using Abc.Unity;
+using UnityEngine.UIElements;
 
 namespace Abc.Unity.Editor
 {
     [CustomEditor(typeof(ActorBlueprint))]
     internal sealed class ActorBlueprintEditor : UnityEditor.Editor
     {
-        private sealed class ProviderOption
-        {
-            public Type ProviderType;
-            public Type ModuleType;
-            public GUIContent Label;
-        }
-
-        private readonly Dictionary<int, SerializedObject> _providerObjects = new Dictionary<int, SerializedObject>();
+        private readonly List<SerializedObject> _providerObjects = new List<SerializedObject>();
+        private readonly HashSet<int> _expanded = new HashSet<int>();
         private readonly HashSet<Type> _validationTypes = new HashSet<Type>();
-        private List<ProviderOption> _dataOptions;
-        private List<ProviderOption> _behaviourOptions;
-        private ReorderableList _dataList;
-        private ReorderableList _behaviourList;
-        private SerializedProperty _data;
-        private SerializedProperty _behaviours;
+        private VisualElement _root;
+        private VisualElement _composition;
+        private HelpBox _validation;
+        private bool _rebuildPending;
 
-        private void OnEnable()
-        {
-            _data = serializedObject.FindProperty("_data");
-            _behaviours = serializedObject.FindProperty("_behaviours");
-            _dataOptions = BuildDataOptions();
-            _behaviourOptions = BuildBehaviourOptions();
-            _dataList = CreateList(_data, true);
-            _behaviourList = CreateList(_behaviours, false);
-            Undo.undoRedoPerformed += HandleUndoRedo;
-        }
+        private void OnEnable() => Undo.undoRedoPerformed += ScheduleRebuild;
 
         private void OnDisable()
         {
-            Undo.undoRedoPerformed -= HandleUndoRedo;
-            _providerObjects.Clear();
+            Undo.undoRedoPerformed -= ScheduleRebuild;
+            _root?.Unbind();
+            ReleaseProviders();
         }
 
-        public override void OnInspectorGUI()
+        public override VisualElement CreateInspectorGUI()
         {
+            _root = ActorEditorStyles.Root();
+            _root.Add(ActorEditorStyles.Header("Blueprint", "Reusable composition. Configure once, instantiate anywhere."));
+            var tools = ActorEditorStyles.Row("abc-toolbar");
+            tools.Add(ActorEditorStyles.Button("Add data", () => OpenPicker(true), true));
+            tools.Add(ActorEditorStyles.Button("Add behaviour", () => OpenPicker(false), true));
+            tools.Add(ActorEditorStyles.Button("Create module source", ActorFeatureWizard.Open));
+            _root.Add(tools);
+            _validation = new HelpBox("", HelpBoxMessageType.Error);
+            _root.Add(_validation);
+            _composition = new VisualElement();
+            _root.Add(_composition);
+            Rebuild();
+            return _root;
+        }
+
+        private void ScheduleRebuild()
+        {
+            if (_root == null || _rebuildPending)
+                return;
+            _rebuildPending = true;
+            _root.schedule.Execute(Rebuild);
+        }
+
+        private void Rebuild()
+        {
+            _rebuildPending = false;
+            if (target == null || _composition == null)
+                return;
+            _composition.Unbind();
+            _composition.Clear();
+            ReleaseProviders();
             serializedObject.Update();
-            ActorEditorStyles.DrawHeader("Actor Blueprint", "Reusable data and behaviour composition", "d_ScriptableObject Icon");
-            DrawSummary();
-            DrawValidation();
-
-            ActorEditorStyles.BeginCard();
-            _dataList.DoLayoutList();
-            ActorEditorStyles.EndCard();
-
-            ActorEditorStyles.BeginCard();
-            _behaviourList.DoLayoutList();
-            ActorEditorStyles.EndCard();
-
-            serializedObject.ApplyModifiedProperties();
+            var errors = new List<string>();
+            BuildCollection("_data", true, errors);
+            BuildCollection("_behaviours", false, errors);
+            _validation.text = string.Join("\n", errors);
+            _validation.style.display = errors.Count == 0 ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
-        private void DrawSummary()
+        private void BuildCollection(string path, bool data, List<string> errors)
         {
-            EditorGUILayout.BeginHorizontal();
-            ActorEditorStyles.DrawMetric(_data.arraySize.ToString(), "Data");
-            ActorEditorStyles.DrawMetric(_behaviours.arraySize.ToString(), "Behaviours");
-            ActorEditorStyles.DrawMetric((_data.arraySize + _behaviours.arraySize).ToString(), "Total Modules");
-            EditorGUILayout.EndHorizontal();
-            GUILayout.Space(3f);
-        }
-
-        private void DrawValidation()
-        {
-            var missingData = CountMissing(_data);
-            var missingBehaviours = CountMissing(_behaviours);
-            var duplicateData = CountDuplicateModuleTypes(_data, true);
-            var duplicateBehaviours = CountDuplicateModuleTypes(_behaviours, false);
-
-            if (missingData + missingBehaviours > 0)
-                EditorGUILayout.HelpBox("The blueprint contains missing providers. Remove or replace them before entering Play Mode.", MessageType.Error);
-
-            if (duplicateData + duplicateBehaviours > 0)
-                EditorGUILayout.HelpBox("Each concrete data or behaviour type can appear only once in an actor.", MessageType.Error);
-
-            if (_data.arraySize + _behaviours.arraySize == 0)
-                EditorGUILayout.HelpBox("Use the + buttons to compose this blueprint.", MessageType.Info);
-        }
-
-        private ReorderableList CreateList(SerializedProperty property, bool isData)
-        {
-            var list = new ReorderableList(serializedObject, property, true, true, true, true);
-            list.drawHeaderCallback = rect => DrawListHeader(rect, property, isData);
-            list.drawElementCallback = (rect, index, active, focused) => DrawElement(rect, property, index, isData);
-            list.elementHeightCallback = index => GetElementHeight(property, index);
-            list.onAddCallback = targetList => ShowProviderMenu(targetList, isData);
-            list.onRemoveCallback = RemoveProvider;
-            return list;
-        }
-
-        private static void DrawListHeader(Rect rect, SerializedProperty property, bool isData)
-        {
-            var title = isData ? "Data" : "Behaviours";
-            EditorGUI.LabelField(rect, $"{title}  {property.arraySize}", EditorStyles.boldLabel);
-        }
-
-        private void DrawElement(Rect rect, SerializedProperty collection, int index, bool isData)
-        {
-            var element = collection.GetArrayElementAtIndex(index);
-            var provider = element.objectReferenceValue;
-            var background = isData ? ActorEditorStyles.DataColor : ActorEditorStyles.BehaviourColor;
-            EditorGUI.DrawRect(new Rect(rect.x, rect.y + 1f, rect.width, rect.height - 2f), background);
-
-            var line = new Rect(rect.x + 6f, rect.y + 3f, rect.width - 12f, EditorGUIUtility.singleLineHeight);
-            if (provider == null)
-            {
-                EditorGUI.LabelField(line, "Missing Provider", EditorStyles.boldLabel);
-                return;
-            }
-
-            var moduleType = GetModuleType(provider, isData);
-            var badgeWidth = 76f;
-            var foldoutRect = new Rect(line.x, line.y, line.width - badgeWidth, line.height);
-            var badgeRect = new Rect(line.xMax - badgeWidth, line.y, badgeWidth, line.height);
-            element.isExpanded = EditorGUI.Foldout(foldoutRect, element.isExpanded, moduleType.Name, true, EditorStyles.foldoutHeader);
-            EditorGUI.LabelField(badgeRect, isData ? "DATA" : "BEHAVIOUR", EditorStyles.miniBoldLabel);
-
-            if (!element.isExpanded)
-                return;
-
-            var nested = GetSerializedObject(provider);
-            nested.UpdateIfRequiredOrScript();
-            var property = nested.GetIterator();
-            var enterChildren = true;
-            var y = line.yMax + EditorGUIUtility.standardVerticalSpacing + 3f;
-
-            while (property.NextVisible(enterChildren))
-            {
-                enterChildren = false;
-                if (property.propertyPath == "m_Script")
-                    continue;
-
-                var height = EditorGUI.GetPropertyHeight(property, true);
-                var propertyRect = new Rect(line.x + 12f, y, line.width - 12f, height);
-                EditorGUI.PropertyField(propertyRect, property, true);
-                y += height + EditorGUIUtility.standardVerticalSpacing;
-            }
-
-            nested.ApplyModifiedProperties();
-        }
-
-        private float GetElementHeight(SerializedProperty collection, int index)
-        {
-            var element = collection.GetArrayElementAtIndex(index);
-            var height = EditorGUIUtility.singleLineHeight + 8f;
-
-            if (!element.isExpanded || element.objectReferenceValue == null)
-                return height;
-
-            var nested = GetSerializedObject(element.objectReferenceValue);
-            nested.UpdateIfRequiredOrScript();
-            var property = nested.GetIterator();
-            var enterChildren = true;
-
-            while (property.NextVisible(enterChildren))
-            {
-                enterChildren = false;
-                if (property.propertyPath == "m_Script")
-                    continue;
-
-                height += EditorGUI.GetPropertyHeight(property, true) + EditorGUIUtility.standardVerticalSpacing;
-            }
-
-            return height + 5f;
-        }
-
-        private void ShowProviderMenu(ReorderableList list, bool isData)
-        {
-            var options = isData ? _dataOptions : _behaviourOptions;
-            if (options.Count == 0)
-            {
-                EditorUtility.DisplayDialog("ABC", isData ? "No data providers were found." : "No behaviour providers were found.", "OK");
-                return;
-            }
-
-            var menu = new GenericMenu();
-
-            for (var i = 0; i < options.Count; i++)
-            {
-                var option = options[i];
-                if (ContainsModuleType(list.serializedProperty, option.ModuleType, isData))
-                    menu.AddDisabledItem(new GUIContent($"{option.Label.text}  (already added)"));
-                else
-                    menu.AddItem(option.Label, false, () => AddProvider(list, option));
-            }
-
-            menu.ShowAsContext();
-        }
-
-        private void AddProvider(ReorderableList list, ProviderOption option)
-        {
-            var blueprint = (ActorBlueprint)target;
-            var assetPath = AssetDatabase.GetAssetPath(blueprint);
-            if (string.IsNullOrEmpty(assetPath))
-            {
-                EditorUtility.DisplayDialog("ABC", "Save the blueprint as an asset before adding providers.", "OK");
-                return;
-            }
-
-            serializedObject.Update();
-            var provider = ScriptableObject.CreateInstance(option.ProviderType);
-            provider.name = option.ModuleType.Name;
-            provider.hideFlags = HideFlags.HideInHierarchy;
-            Undo.RecordObject(blueprint, "Add actor provider");
-            Undo.RegisterCreatedObjectUndo(provider, "Add actor provider");
-            AssetDatabase.AddObjectToAsset(provider, blueprint);
-
-            var property = list.serializedProperty;
-            var index = property.arraySize;
-            property.InsertArrayElementAtIndex(index);
-            property.GetArrayElementAtIndex(index).objectReferenceValue = provider;
-            list.index = index;
-            serializedObject.ApplyModifiedProperties();
-            EditorUtility.SetDirty(blueprint);
-            EditorUtility.SetDirty(provider);
-            AssetDatabase.SaveAssets();
-        }
-
-        private void RemoveProvider(ReorderableList list)
-        {
-            if (list.index < 0 || list.index >= list.serializedProperty.arraySize)
-                return;
-
-            serializedObject.Update();
-            var blueprint = (ActorBlueprint)target;
-            var property = list.serializedProperty;
-            var element = property.GetArrayElementAtIndex(list.index);
-            var provider = element.objectReferenceValue;
-            Undo.RecordObject(blueprint, "Remove actor provider");
-            element.objectReferenceValue = null;
-            property.DeleteArrayElementAtIndex(list.index);
-            serializedObject.ApplyModifiedProperties();
-
-            if (provider != null)
-            {
-                _providerObjects.Remove(provider.GetInstanceID());
-                Undo.DestroyObjectImmediate(provider);
-            }
-
-            EditorUtility.SetDirty(blueprint);
-            AssetDatabase.SaveAssets();
-        }
-
-        private SerializedObject GetSerializedObject(UnityEngine.Object provider)
-        {
-            var id = provider.GetInstanceID();
-            if (_providerObjects.TryGetValue(id, out var result) && result.targetObject != null)
-                return result;
-
-            result = new SerializedObject(provider);
-            _providerObjects[id] = result;
-            return result;
-        }
-
-        private static List<ProviderOption> BuildDataOptions()
-        {
-            var result = new List<ProviderOption>();
-
-            foreach (var type in TypeCache.GetTypesDerivedFrom<ActorDataProviderBase>())
-            {
-                if (type.IsAbstract || type.IsGenericTypeDefinition)
-                    continue;
-
-                var provider = (ActorDataProviderBase)ScriptableObject.CreateInstance(type);
-                var moduleType = provider.GetDataType();
-                UnityEngine.Object.DestroyImmediate(provider);
-                result.Add(CreateOption(type, moduleType));
-            }
-
-            SortOptions(result);
-            return result;
-        }
-
-        private static List<ProviderOption> BuildBehaviourOptions()
-        {
-            var result = new List<ProviderOption>();
-
-            foreach (var type in TypeCache.GetTypesDerivedFrom<ActorBehaviourProviderBase>())
-            {
-                if (type.IsAbstract || type.IsGenericTypeDefinition)
-                    continue;
-
-                var provider = (ActorBehaviourProviderBase)ScriptableObject.CreateInstance(type);
-                var moduleType = provider.GetBehaviourType();
-                UnityEngine.Object.DestroyImmediate(provider);
-                result.Add(CreateOption(type, moduleType));
-            }
-
-            SortOptions(result);
-            return result;
-        }
-
-        private static ProviderOption CreateOption(Type providerType, Type moduleType)
-        {
-            var namespacePath = string.IsNullOrEmpty(moduleType.Namespace)
-                ? string.Empty
-                : moduleType.Namespace.Replace('.', '/') + "/";
-            return new ProviderOption
-            {
-                ProviderType = providerType,
-                ModuleType = moduleType,
-                Label = new GUIContent(namespacePath + ObjectNames.NicifyVariableName(moduleType.Name))
-            };
-        }
-
-        private static void SortOptions(List<ProviderOption> options) =>
-            options.Sort(static (left, right) => string.Compare(left.Label.text, right.Label.text, StringComparison.Ordinal));
-
-        private static bool ContainsModuleType(SerializedProperty collection, Type moduleType, bool isData)
-        {
+            var collection = serializedObject.FindProperty(path);
+            var card = ActorEditorStyles.Card($"{(data ? "Data" : "Behaviours")}  /  {collection.arraySize}",
+                data ? "State and configuration." : "Logic with cached dependencies.");
+            _validationTypes.Clear();
             for (var i = 0; i < collection.arraySize; i++)
             {
                 var provider = collection.GetArrayElementAtIndex(i).objectReferenceValue;
-                if (provider != null && GetModuleType(provider, isData) == moduleType)
+                if (provider == null)
+                    errors.Add($"{(data ? "Data" : "Behaviour")} slot {i + 1}: assign or remove the missing provider.");
+                else if (!_validationTypes.Add(ActorProviderCatalog.GetModuleType(provider)))
+                    errors.Add($"{provider.name}: this module type is added more than once.");
+                card.Add(CreateProviderRow(path, i, data, provider));
+            }
+            if (collection.arraySize == 0)
+                card.Add(ActorEditorStyles.Text(data ? "Add data to define this actor's state." : "Add behaviours to bring that state to life.", "abc-muted"));
+            card.Add(ActorEditorStyles.Button(data ? "+ Add data" : "+ Add behaviour", () => OpenPicker(data)));
+            _composition.Add(card);
+        }
+
+        private VisualElement CreateProviderRow(string path, int index, bool data, UnityEngine.Object provider)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("abc-provider");
+            row.AddToClassList(data ? "abc-module-data" : "abc-module-behaviour");
+            var actions = ActorEditorStyles.Row();
+            actions.Add(ActorEditorStyles.Text($"{index + 1:00}", "abc-pill"));
+            var up = ActorEditorStyles.Button("↑", () => MoveProvider(path, index, -1));
+            up.tooltip = "Move earlier in initialization order";
+            up.SetEnabled(index > 0);
+            var down = ActorEditorStyles.Button("↓", () => MoveProvider(path, index, 1));
+            down.tooltip = "Move later in initialization order";
+            down.SetEnabled(index + 1 < serializedObject.FindProperty(path).arraySize);
+            actions.Add(up);
+            actions.Add(down);
+            actions.Add(ActorEditorStyles.Button("Remove", () => RemoveProvider(path, index)));
+            if (provider != null)
+                actions.Add(ActorEditorStyles.Button("Source", () => ActorEditorSource.Open(ActorProviderCatalog.GetModuleType(provider))));
+            row.Add(actions);
+            if (provider == null)
+            {
+                var missing = new ObjectField("Provider") { objectType = data ? typeof(ActorDataProviderBase) : typeof(ActorBehaviourProviderBase), allowSceneObjects = false };
+                missing.RegisterValueChangedCallback(evt => AssignProvider(path, index, evt.newValue));
+                row.Add(missing);
+                return row;
+            }
+            var foldout = new Foldout
+            {
+                text = ActorProviderCatalog.GetModuleType(provider).Name,
+                value = _expanded.Contains(provider.GetInstanceID()),
+                tooltip = provider.GetType().FullName
+            };
+            foldout.RegisterValueChangedCallback(evt =>
+            {
+                if (evt.newValue)
+                    _expanded.Add(provider.GetInstanceID());
+                else
+                    _expanded.Remove(provider.GetInstanceID());
+            });
+            AddProviderFields(foldout, provider);
+            row.Add(foldout);
+            return row;
+        }
+
+        private void AddProviderFields(VisualElement parent, UnityEngine.Object provider)
+        {
+            var serialized = new SerializedObject(provider);
+            _providerObjects.Add(serialized);
+            var inspector = new InspectorElement(serialized);
+            inspector.RegisterCallback<AttachToPanelEvent>(_ =>
+            {
+                var script = inspector.Q<PropertyField>("PropertyField:m_Script");
+                if (script != null)
+                    script.style.display = DisplayStyle.None;
+            });
+            parent.Add(inspector);
+        }
+
+        private void OpenPicker(bool data)
+        {
+            ActorProviderPicker.Open(data, type => ContainsModule(data ? "_data" : "_behaviours", type),
+                option => AddProvider(data ? "_data" : "_behaviours", option));
+        }
+
+        private bool ContainsModule(string path, Type type)
+        {
+            if (target == null)
+                return true;
+            serializedObject.UpdateIfRequiredOrScript();
+            var collection = serializedObject.FindProperty(path);
+            for (var i = 0; i < collection.arraySize; i++)
+            {
+                var provider = collection.GetArrayElementAtIndex(i).objectReferenceValue;
+                if (provider != null && ActorProviderCatalog.GetModuleType(provider) == type)
                     return true;
             }
-
             return false;
         }
 
-        private static int CountMissing(SerializedProperty collection)
+        private void AddProvider(string path, ActorProviderCatalog.Option option)
         {
-            var result = 0;
-
-            for (var i = 0; i < collection.arraySize; i++)
+            if (target == null || ContainsModule(path, option.ModuleType))
+                return;
+            if (string.IsNullOrEmpty(AssetDatabase.GetAssetPath(target)))
             {
-                if (collection.GetArrayElementAtIndex(i).objectReferenceValue == null)
-                    result++;
+                EditorUtility.DisplayDialog("ABC Blueprint", "Save the blueprint as an asset before adding providers.", "Close");
+                return;
             }
-
-            return result;
-        }
-
-        private int CountDuplicateModuleTypes(SerializedProperty collection, bool isData)
-        {
-            _validationTypes.Clear();
-            var result = 0;
-
-            for (var i = 0; i < collection.arraySize; i++)
-            {
-                var provider = collection.GetArrayElementAtIndex(i).objectReferenceValue;
-                if (provider != null && !_validationTypes.Add(GetModuleType(provider, isData)))
-                    result++;
-            }
-
-            return result;
-        }
-
-        private static Type GetModuleType(UnityEngine.Object provider, bool isData) => isData
-            ? ((ActorDataProviderBase)provider).GetDataType()
-            : ((ActorBehaviourProviderBase)provider).GetBehaviourType();
-
-        private void HandleUndoRedo()
-        {
-            _providerObjects.Clear();
             serializedObject.Update();
-            Repaint();
+            var provider = CreateInstance(option.ProviderType);
+            provider.name = option.ModuleType.Name;
+            provider.hideFlags = HideFlags.HideInHierarchy;
+            Undo.RecordObject(target, "Add actor provider");
+            Undo.RegisterCreatedObjectUndo(provider, "Add actor provider");
+            AssetDatabase.AddObjectToAsset(provider, target);
+            var collection = serializedObject.FindProperty(path);
+            var index = collection.arraySize++;
+            collection.GetArrayElementAtIndex(index).objectReferenceValue = provider;
+            serializedObject.ApplyModifiedProperties();
+            EditorUtility.SetDirty(provider);
+            EditorUtility.SetDirty(target);
+            AssetDatabase.SaveAssets();
+            _expanded.Add(provider.GetInstanceID());
+            ScheduleRebuild();
+        }
+
+        private void MoveProvider(string path, int index, int direction)
+        {
+            serializedObject.Update();
+            var collection = serializedObject.FindProperty(path);
+            var destination = index + direction;
+            if (index < 0 || index >= collection.arraySize || destination < 0 || destination >= collection.arraySize)
+                return;
+            collection.MoveArrayElement(index, destination);
+            serializedObject.ApplyModifiedProperties();
+            ScheduleRebuild();
+        }
+
+        private void AssignProvider(string path, int index, UnityEngine.Object provider)
+        {
+            serializedObject.Update();
+            var collection = serializedObject.FindProperty(path);
+            if (index >= collection.arraySize)
+                return;
+            collection.GetArrayElementAtIndex(index).objectReferenceValue = provider;
+            serializedObject.ApplyModifiedProperties();
+            ScheduleRebuild();
+        }
+
+        private void RemoveProvider(string path, int index)
+        {
+            ActorBlueprintAuthoring.RemoveProvider(serializedObject, serializedObject.FindProperty(path), index);
+            ScheduleRebuild();
+        }
+
+        private void ReleaseProviders()
+        {
+            for (var i = 0; i < _providerObjects.Count; i++)
+                _providerObjects[i].Dispose();
+            _providerObjects.Clear();
         }
     }
 }

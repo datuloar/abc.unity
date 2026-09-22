@@ -18,7 +18,7 @@ Its concrete setup surface is intentionally small:
 
 | Framework | Published model | Strongest fit | Setup and authoring distinction |
 | --- | --- | --- | --- |
-| ABC | Reference data and behaviours on `Actor` or `ActorModel`; optional indexed `ActorWorld` | Gameplay architecture from prototype to large object-model simulations | Unity 2021.3+, one namespace, built-in inspectors, optional visible scaffold, no required codegen |
+| ABC | Reference data and behaviours on `Actor` or `ActorModel`; optional indexed `ActorWorld` | Gameplay architecture from prototype to large object-model simulations | Unity 2022.3+, one namespace, built-in inspectors, optional visible scaffold, no required codegen |
 | [Atomic](https://github.com/StarKRE22/Atomic) | Object-oriented entities composed from values, variables, events, actions, behaviours, installers, worlds, and filters | Broad object-oriented gameplay toolkit | Requires Unity 6; its published quick start configures four generator/analyzer DLLs and key declarations; Odin is optional and recommended for richer inspection |
 | [Massive ECS](https://github.com/nilpunch/massive-ecs) | Bitset-based struct ECS with engine-independent core and snapshot/rollback features | Deterministic prediction, replay, rollback, and value-component simulation | Explicit world, struct component, aspect, and query workflow; Unity integration is separate |
 | [StaticEcs](https://github.com/Felid-Force-Studios/StaticEcs) | Static-generic, struct, SoA ECS with hierarchical inverted bitmaps | Very high entity counts, stable storage, parallel iteration, Burst-oriented workloads | Explicit world/system marker types and component registration; dedicated Unity module |

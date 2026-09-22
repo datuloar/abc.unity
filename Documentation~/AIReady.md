@@ -24,6 +24,8 @@ Open `Tools → ABC → Feature Scaffold` and choose the parts of a feature:
 
 The tool derives every type and file name from one valid C# feature name. It previews the output, writes UTF-8 source with stable formatting, and refuses to overwrite an existing file. The result is normal C# with no retained relationship to the generator.
 
+Generated behaviours cache selected data during initialization but do not register a no-op frame tick. Add `IActorTick`, `IActorFixedTick`, or `IActorLateTick` only for logic that actually needs that phase.
+
 This is the preferred answer to repetitive provider and feature boilerplate. Do not add a build-time generator when a visible editor scaffold can produce the same code once.
 
 ## Agent workflow
@@ -40,6 +42,36 @@ For a new mechanic:
 8. Run `pwsh -File Tools~/validate.ps1`, then the applicable Unity tests.
 
 The scaffold is optional. Agents may create the same files directly when operating without an active Unity Editor, provided the generated shape follows `AGENTS.md` and `.editorconfig`.
+
+## Headless feature creation
+
+An agent can use the same tested templates without opening a window:
+
+```text
+Unity.exe -batchmode -nographics -quit -projectPath <project> -executeMethod Abc.Unity.Editor.ActorFeatureScaffold.Generate -abcFeature Health -abcNamespace Game.Combat -abcOutput Assets/Game/Combat -logFile <log>
+```
+
+This creates data, behaviour, command, query action and both Blueprint providers. The editor window remains the selective path when fewer files are needed. Both entry points share validation and writing: existing source or metadata is never overwritten, traversal and linked output directories are rejected, and failed writes roll back only files created by that invocation. Compile the result after generation before treating it as ready.
+
+`-abcNamespace` and `-abcOutput` may be omitted to use the host project's saved ABC defaults. Explicit arguments take precedence. Use the project's established source folder; `Assets/Game/Combat` above is only an example. In Unity, choose defaults through `Tools → ABC → Project Setup` or the Feature Scaffold's **Use Selected Folder** and **Save as Project Defaults** controls. Custom gameplay assemblies must reference `abc.unity`.
+
+## Add ABC to an existing game
+
+Start with one complete mechanic, not a project-wide rewrite. Keep Unity physics, animation and rendering at the scene boundary. Put its state in data, its logic in behaviours and its local intent in typed commands. Existing services remain explicit constructor dependencies; do not wrap them in a new service locator.
+
+Give the agent this prompt:
+
+```text
+Read the ABC AGENTS.md contract and inspect only the current combat feature.
+Move its state and logic onto the existing Actor/ActorModel contracts.
+Keep prefabs, assets, input bindings and public gameplay behavior unchanged.
+Use the smallest feature slice, no compatibility aliases or parallel framework.
+Cache dependencies during Initialize, keep warmed updates allocation-free,
+and add focused tests for combat behavior and teardown before expanding the scope.
+Report the changed files, test results and any behavior intentionally changed.
+```
+
+Blueprints are optional authoring assets, not an older runtime architecture. Use fluent composition in tests and agent-authored prototypes; use Blueprint providers when designers need reusable inspector values. Both produce ordinary independent modules and enter the same lifecycle. Never pay Blueprint cloning or dependency lookup costs inside a per-frame loop.
 
 ## Prompt contract
 

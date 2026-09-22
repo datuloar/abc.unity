@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace Abc.Unity
@@ -41,6 +42,27 @@ namespace Abc.Unity
         public int Count => _liveCount;
         public int Capacity => _actors.Length;
         public bool IsDisposed => _disposed;
+
+#if UNITY_EDITOR
+        internal void CopyModelsTo(List<ActorModel> destination)
+        {
+            destination.Clear();
+
+            for (var i = 0; i < _slotCount; i++)
+            {
+                var actor = _actors[i];
+                if (actor != null && ReferenceEquals(actor.World, this))
+                    destination.Add(actor);
+            }
+
+            for (var i = 0; i < _pendingCount; i++)
+            {
+                var actor = _pending[i];
+                if (actor != null && ReferenceEquals(actor.World, this))
+                    destination.Add(actor);
+            }
+        }
+#endif
 
         public void EnsureCapacity(int capacity)
         {

@@ -36,6 +36,8 @@ namespace Abc.Unity.Tests
             Assert.That(files, Has.Count.EqualTo(4));
             Assert.That(FindContent(files, "DamageBehaviour.cs"), Does.Contain("IActorCommandListener<DamageCommand>"));
             Assert.That(FindContent(files, "DamageBehaviour.cs"), Does.Contain("Owner.GetData<DamageData>()"));
+            Assert.That(FindContent(files, "DamageBehaviour.cs"), Does.Not.Contain("IActorTick"));
+            Assert.That(FindContent(files, "DamageBehaviour.cs"), Does.Not.Contain("void Tick("));
             Assert.That(FindContent(files, "DamageCommand.cs"), Does.Contain("IActorCommand"));
             Assert.That(FindContent(files, "DamageAction.cs"), Does.Contain("IActorQueryAction<DamageData>"));
         }

@@ -7,9 +7,9 @@
 </p>
 
 <p align="center">
-  <img alt="Unity 2021.3+" src="https://img.shields.io/badge/Unity-2021.3%2B-222222?style=flat-square&logo=unity">
+  <img alt="Unity 2022.3+" src="https://img.shields.io/badge/Unity-2022.3%2B-222222?style=flat-square&logo=unity">
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2ea44f?style=flat-square">
-  <img alt="89 tests" src="https://img.shields.io/badge/tests-89%20passing-2ea44f?style=flat-square">
+  <img alt="121 tests" src="https://img.shields.io/badge/tests-121%20passing-2ea44f?style=flat-square">
   <img alt="zero allocation hot paths" src="https://img.shields.io/badge/hot%20paths-0%20GC.Alloc-1688f0?style=flat-square">
   <img alt="AI-ready workflow" src="https://img.shields.io/badge/workflow-AI--ready-7c5cff?style=flat-square">
 </p>
@@ -18,10 +18,20 @@
 
 ABC is a free Actor Behaviour Component framework for Unity. It combines an approachable object-oriented workflow with an optional data-oriented runtime for large simulations.
 
+**Describe the mechanic. Get readable C#. Tune it visually. Scale only what needs it.** ABC gives people and coding agents the same small set of concepts—without requiring generated accessors, paid inspectors or a second gameplay architecture.
+
+| Your next step | ABC path |
+| --- | --- |
+| Make a playable mechanic | Plain data + behaviour + `Actor` or `ActorModel` |
+| Let an agent create the feature | `AGENTS.md` + deterministic window or headless scaffold |
+| Let a designer tune it | Built-in Blueprint inspector with inline fields and Undo |
+| Process thousands of models | Keep the same data; cache a world query and use a struct action |
+| Adopt it in an existing game | Convert one mechanic while keeping scene assets and Unity systems |
+
 - `Actor` composes normal GameObjects, MonoBehaviours, data, commands, and reusable blueprints.
 - `ActorModel` runs the same gameplay API without GameObjects.
 - `ActorWorld` owns model lifetime, mutation-safe updates, and lazy exact-type query indexes.
-- Built-in inspectors and the ABC Dashboard work without Odin or another paid dependency.
+- Built-in inspectors, the ABC Dashboard, and World Explorer work without Odin or another paid dependency.
 - The optional Feature Scaffold emits normal editable C# and adds no generator runtime.
 - C# types are module keys. There are no user-declared module IDs, API declarations, generated accessor DLLs, or registration bootstrap.
 
@@ -59,7 +69,7 @@ ABC is intentionally not a struct/SoA ECS. If a project needs millions of tightl
 
 ## Install
 
-ABC requires Unity 2021.3 or newer and the .NET Standard 2.1 API profile.
+ABC requires Unity 2022.3 or newer and the .NET Standard 2.1 API profile. Release validation covers Unity 2022.3 LTS and Unity 6 on Windows, with Windows x64 Mono players. IL2CPP and other operating systems are not certified by this release.
 
 Add the Git package to `Packages/manifest.json`:
 
@@ -194,29 +204,45 @@ The built-in blueprint inspector provides:
 - searchable type discovery through Unity `TypeCache`;
 - nested provider editing;
 - duplicate prevention;
-- drag reordering and Undo;
+- explicit initialization-order controls and Undo;
 - missing-reference and composition validation.
 
 ### Dashboard
 
 Open `Tools → ABC → Dashboard` to see:
 
-- scene actor, initialized, and alive counts;
+- scene actor and alive counts;
 - live `ActorWorld` instances, model counts, capacity, and active query indexes;
 - one-click Actor, Actor World Runner, and Blueprint creation;
 - a scene-free quick start and documentation access.
 
 All tooling is in the editor-only `abc.unity.editor` assembly and is excluded from players.
 
+### World Explorer
+
+Open `Tools → ABC → World Explorer` to browse live worlds and scene Actors. Search by name, tag, data, or behaviour, inspect read-only runtime values, jump to source, and copy a diagnostic snapshot for a teammate or coding agent. A virtualized UI Toolkit list keeps large result sets navigable; narrow windows keep both panes reachable.
+
+All ABC editor windows and inspectors use native UI Toolkit with a shared light/dark theme. The Blueprint picker searches module names and namespaces, while Feature Scaffold previews complete source before writing any files. No Odin or paid extension is required.
+
+<p align="center">
+  <img src="Documentation~/Images/world-explorer-dark.png" width="1100" alt="World Explorer inspecting Bot Arena models, composition and runtime fields in Unity's dark theme">
+</p>
+
+See the [light-theme preview](Documentation~/Images/world-explorer-light.png) and [editor workflow](Documentation~/EditorTooling.md).
+
+### Your project layout
+
+ABC works with your existing folders. `Tools → ABC → Project Setup` stores a default source folder and namespace; Feature Scaffold can use the folder selected in Project or a per-feature override. There is no required `Assets/Game` layout or bootstrap scene. See [editor tooling](Documentation~/EditorTooling.md) for folder moves and custom assemblies.
+
 ### Bot Arena sample
 
-Bot Arena is a playable top-down shooter built only from ABC and Unity built-ins. It combines Blueprint-authored bot defaults, scene-free `ActorModel` instances, local fire and damage commands, cached behaviour dependencies, mutation-safe spawning and destruction, and one-to-three-data struct queries. Press `B` to add 100 bots and inspect the live model and query-index counts in the ABC Dashboard.
+Bot Arena is a playable top-down shooter built only from ABC and Unity built-ins. It combines Blueprint-authored bot defaults, scene-free `ActorModel` instances, local fire and damage commands, cached behaviour dependencies, mutation-safe spawning and destruction, and one-to-three-data struct queries. Press `B` to add 100 bots, then select Bot Arena in World Explorer to inspect individual models and their changing state.
 
 <p align="center">
   <img src="Samples~/BotArena/BotArena.png" width="1100" alt="ABC Bot Arena sample running with ten bots, projectiles, runtime metrics, and controls">
 </p>
 
-Open `Samples/Bot Arena/Scenes/BotArena`, enter Play Mode, move with WASD, aim with the mouse, and fire with the left mouse button or Space. The presentation uses built-in primitives and the Built-in Render Pipeline, with no paid assets. URP/HDRP projects need adapted presentation materials; the ABC runtime itself is render-pipeline independent.
+In the imported Bot Arena sample, open `Scenes/BotArena`, enter Play Mode, move with WASD, aim with the mouse, and fire with the left mouse button or Space. The presentation uses built-in primitives and the Built-in Render Pipeline, with no paid assets. URP/HDRP projects need adapted presentation materials; the ABC runtime itself is render-pipeline independent.
 
 ## Data access and lifecycle
 
@@ -264,7 +290,7 @@ Listener discovery reflects once per behaviour type and caches the result. Comma
 
 ## Performance contract
 
-The repository contains deterministic regression tests built on Unity `ProfilerRecorder` and its `GC.Alloc` marker. The final Unity 2022.3.62f2 and Unity 6.0.71f1 Editor/Mono validation runs on the development machine produced:
+The repository contains deterministic regression tests built on Unity `ProfilerRecorder` and its `GC.Alloc` marker. The recorded Unity 2022.3.62f2 and Unity 6.0.71f1 Editor/Mono reference runs on the development machine produced:
 
 | Operation | Unity 2022.3 | Unity 6.0 |
 | --- | ---: | ---: |
@@ -301,9 +327,9 @@ See [Market and design comparison](Documentation~/Comparison.md) for a source-li
 
 ## Validation
 
-The current validation contains 89 EditMode tests: 80 package tests and 9 imported Bot Arena tests. Coverage includes lifecycle order and rollback, cross-actor module isolation, exact and polymorphic lookup, compact-to-wide module map transitions, serialized Blueprint cloning, nested ownership, self-destruction during initialization, command failures and mutation, reentrant world cleanup, randomized composition changes, custom tag serialization, query filtering, public API encapsulation, cached views, world slot stability, one/two/three-type queries, scaffold determinism, continuous projectile collision, retained memory, and warmed-up allocations.
+The current validation contains 121 EditMode tests: 112 package tests and 9 imported Bot Arena tests. Coverage includes lifecycle order and rollback, cross-actor module isolation, exact and polymorphic lookup, compact-to-wide module map transitions, Blueprint cloning and asset ownership, nested actors, self-destruction during initialization, command failures and mutation, reentrant world cleanup, randomized composition, tag serialization, query filtering, public API encapsulation, cached views, one/two/three-type queries, safe deterministic scaffolding, folder relocation, native UI Toolkit inspectors, multi-object tag Undo, World Explorer snapshots, projectile collision, retained memory, and warmed-up allocations.
 
-The package and editor assembly are validated on Unity 2022.3 LTS and Unity 6. A Windows Mono player build plus the imported Basic and Bot Arena samples are also checked. The package targets Unity 2021.3+, but that minimum version was not available on the validation machine.
+The release scope is Unity 2022.3 LTS and Unity 6 on Windows, with Windows x64 Mono players. Basic and Bot Arena are checked as imported samples. Unity 2021.3 is below the package minimum; IL2CPP, other operating systems, and URP/HDRP sample presentation are outside the validated release scope.
 
 ## Documentation
 
@@ -312,10 +338,9 @@ The package and editor assembly are validated on Unity 2022.3 LTS and Unity 6. A
 - [High-performance queries](Documentation~/Queries.md)
 - [Editor tooling](Documentation~/EditorTooling.md)
 - [AI-ready development](Documentation~/AIReady.md)
-- [Migrating to ABC 2.0](Documentation~/Migration2.md)
 - [Market and design comparison](Documentation~/Comparison.md)
 - [Performance methodology](Documentation~/Performance.md)
-- [ABC 2.0 audit and validation scope](Documentation~/Audit2.md)
+- [Release scope and packaging](Documentation~/Release2.md)
 
 ## License
 

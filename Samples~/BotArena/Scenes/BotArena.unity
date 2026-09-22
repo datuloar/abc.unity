@@ -151,6 +151,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8106d86a29834dae9cc6cc785c44ef07, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _botBlueprint: {fileID: 11400000, guid: 85749342a1096de42a6dbde92b9f6a11, type: 2}
+  _materialTemplate: {fileID: 2100000, guid: 35cd8c59131d5fa41899e20a8afa8ac0, type: 2}
   _arenaRadius: 16
   _stressBotCount: 100
 --- !u!4 &1928151717

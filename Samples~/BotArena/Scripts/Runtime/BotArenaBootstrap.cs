@@ -66,6 +66,8 @@ namespace Abc.Unity.Samples.BotArena
                 ArenaVisualData visual) => visual.Sync(position.Value, velocity.Value);
         }
 
+        [SerializeField] private ActorBlueprint _botBlueprint;
+        [SerializeField] private Material _materialTemplate;
         [SerializeField, Range(10f, 30f)] private float _arenaRadius = 16f;
         [SerializeField, Range(10, 250)] private int _stressBotCount = 100;
 
@@ -98,6 +100,13 @@ namespace Abc.Unity.Samples.BotArena
 
         private void Start()
         {
+            if (_botBlueprint == null || _materialTemplate == null)
+            {
+                Debug.LogError("Assign the Bot Blueprint and Material Template on the Bot Arena component before starting the sample.", this);
+                enabled = false;
+                return;
+            }
+
             _camera = Camera.main;
             _sceneState = new ArenaSceneState(_camera);
             Application.targetFrameRate = 144;
@@ -115,7 +124,7 @@ namespace Abc.Unity.Samples.BotArena
             environment.SetParent(transform);
             _entityRoot = new GameObject("Runtime Actors").transform;
             _entityRoot.SetParent(transform);
-            _visuals = new ArenaVisualFactory(_entityRoot);
+            _visuals = new ArenaVisualFactory(_entityRoot, _materialTemplate);
             _visuals.BuildEnvironment(environment, _camera, _arenaRadius);
             ResetSimulation();
         }
@@ -171,7 +180,7 @@ namespace Abc.Unity.Samples.BotArena
         {
             EnsureStyles();
             DrawPanel(new Rect(24f, 24f, 285f, 166f));
-            GUI.Label(new Rect(44f, 39f, 250f, 30f), "ABC 2.0  /  BOT ARENA", _headerStyle);
+            GUI.Label(new Rect(44f, 39f, 250f, 30f), "ABC  /  BOT ARENA", _headerStyle);
             GUI.Label(new Rect(44f, 76f, 245f, 78f), _statusText, _bodyStyle);
             GUI.Label(new Rect(44f, 145f, 245f, 30f), _performanceText, _smallStyle);
 
@@ -222,18 +231,16 @@ namespace Abc.Unity.Samples.BotArena
 
         private void ResetSimulation()
         {
-            var blueprint = Resources.Load<ActorBlueprint>("BotBlueprint");
-
-            if (blueprint == null)
+            if (_botBlueprint == null)
             {
-                Debug.LogError("Bot Arena requires Resources/BotBlueprint.asset.", this);
+                Debug.LogError("Assign the Bot Blueprint on the Bot Arena component before starting the sample.", this);
                 enabled = false;
                 return;
             }
 
             _world?.Dispose();
             _world = new ActorWorld("Bot Arena", 256);
-            _session = new ArenaSession(_world, _visuals, blueprint, _camera, _arenaRadius);
+            _session = new ArenaSession(_world, _visuals, _botBlueprint, _camera, _arenaRadius);
             _agentQuery = _world.Query<ArenaPositionData, ArenaVelocityData, ArenaAgentData>().OnlyAlive();
             _projectileQuery = _world.Query<ArenaProjectileData, ArenaPositionData, ArenaVelocityData>().OnlyAlive();
             _collisionQuery = _world.Query<ArenaProjectileData, ArenaPositionData>().OnlyAlive();
